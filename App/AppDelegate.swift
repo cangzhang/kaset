@@ -1,4 +1,5 @@
 import AppKit
+import UserNotifications
 
 // MARK: - AppDelegate
 
@@ -7,6 +8,9 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
+        // Set up notification center delegate to show notifications in foreground
+        UNUserNotificationCenter.current().delegate = self
+
         // Set up window delegate to intercept close and hide instead
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
@@ -91,5 +95,19 @@ extension AppDelegate: NSWindowDelegate {
         // Hide the window instead of closing it
         sender.orderOut(nil)
         return false // Don't actually close
+    }
+}
+
+// MARK: UNUserNotificationCenterDelegate
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Show notifications even when the app is in the foreground.
+    nonisolated func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show banner and play sound (if any) even when app is in foreground
+        completionHandler([.banner])
     }
 }
