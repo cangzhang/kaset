@@ -49,8 +49,8 @@ final class WebKitManager: NSObject {
         configuration.preferences.isElementFullscreenEnabled = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
 
-        // Disable AirPlay (not needed for this app)
-        configuration.allowsAirPlayForMediaPlayback = false
+        // Enable AirPlay for streaming to Apple TV, HomePod, etc.
+        configuration.allowsAirPlayForMediaPlayback = true
 
         return configuration
     }

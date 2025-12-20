@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 
 /// Player bar shown at the bottom of the content area, styled like Apple Music with Liquid Glass.
@@ -265,6 +266,10 @@ struct PlayerBar: View {
             // Like/Dislike/Library actions
             actionButtons
 
+            // AirPlay button
+            AirPlayButton()
+                .frame(width: 20, height: 20)
+
             Divider()
                 .frame(height: 20)
                 .padding(.horizontal, 4)
@@ -344,6 +349,22 @@ struct PlayerBar: View {
         } else {
             return "speaker.wave.2.fill"
         }
+    }
+}
+
+// MARK: - AirPlay Button
+
+/// A SwiftUI wrapper for AVRoutePickerView to show AirPlay destinations.
+@available(macOS 26.0, *)
+struct AirPlayButton: NSViewRepresentable {
+    func makeNSView(context _: Context) -> AVRoutePickerView {
+        let routePickerView = AVRoutePickerView()
+        routePickerView.isRoutePickerButtonBordered = false
+        return routePickerView
+    }
+
+    func updateNSView(_: AVRoutePickerView, context _: Context) {
+        // No updates needed
     }
 }
 
