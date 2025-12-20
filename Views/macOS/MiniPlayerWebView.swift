@@ -526,6 +526,45 @@ final class SingletonPlayerWebView {
         }
     }
 
+    /// Click the add to library button.
+    func clickAddToLibraryButton() {
+        guard let webView else { return }
+        logger.debug("clickAddToLibraryButton() called")
+
+        let script = """
+            (function() {
+                // Try the save/library button in the player bar (usually in the menu)
+                // First, try the three-dot menu button to open it
+                const menuBtn = document.querySelector('ytmusic-player-bar .menu button, ytmusic-player-bar tp-yt-paper-icon-button.dropdown-trigger');
+                if (menuBtn) {
+                    menuBtn.click();
+                    // Wait a moment for menu to open, then click add to library
+                    setTimeout(function() {
+                        const addToLibrary = document.querySelector('ytmusic-menu-popup-renderer [aria-label*="library" i], ytmusic-menu-popup-renderer tp-yt-paper-item:has(yt-icon[icon*="library"])');
+                        if (addToLibrary) {
+                            addToLibrary.click();
+                            return 'clicked-add-to-library';
+                        }
+                    }, 200);
+                    return 'opened-menu';
+                }
+
+                // Try direct add to library button if it exists
+                const directBtn = document.querySelector('.ytmusic-player-bar [aria-label*="Add to library" i], .ytmusic-player-bar [aria-label*="Save to library" i]');
+                if (directBtn) { directBtn.click(); return 'clicked-direct'; }
+
+                return 'no-library-button';
+            })();
+        """
+        webView.evaluateJavaScript(script) { [weak self] result, error in
+            if let error {
+                self?.logger.error("clickAddToLibraryButton error: \(error.localizedDescription)")
+            } else {
+                self?.logger.debug("clickAddToLibraryButton result: \(String(describing: result))")
+            }
+        }
+    }
+
     // Observer script for playback state
     private static var observerScript: String {
         """

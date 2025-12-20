@@ -24,7 +24,7 @@ App/                → App entry point, AppDelegate (window lifecycle)
 Core/
   ├── Models/       → Data models (Song, Playlist, Album, Artist, etc.)
   ├── Services/
-  │   ├── API/      → YTMusicClient (YouTube Music API calls)
+  │   ├── API/      → YTMusicClient, Parsers/ (response parsing)
   │   ├── Auth/     → AuthService (login state machine)
   │   ├── Player/   → PlayerService, NowPlayingManager (playback control)
   │   └── WebKit/   → WebKitManager (cookie store, persistent login)
@@ -34,6 +34,7 @@ Views/
   └── macOS/        → SwiftUI views (MainWindow, Sidebar, PlayerBar, etc.)
 Tests/              → Unit tests (KasetTests/)
 docs/               → Detailed documentation
+  └── adr/          → Architecture Decision Records
 ```
 
 ## Documentation
@@ -43,11 +44,13 @@ For detailed information, see the `docs/` folder:
 - **[docs/architecture.md](docs/architecture.md)** — Services, state management, data flow
 - **[docs/playback.md](docs/playback.md)** — WebView playback system, background audio
 - **[docs/testing.md](docs/testing.md)** — Test commands, patterns, debugging
+- **[docs/adr/](docs/adr/)** — Architecture Decision Records (ADRs)
 
 ## Before You Start
 
 1. **Read [PLAN.md](PLAN.md)** — Contains the phased implementation plan
 2. **Understand the playback architecture** — See [docs/playback.md](docs/playback.md)
+3. **Check ADRs for past decisions** — See [docs/adr/](docs/adr/) before proposing architectural changes
 
 ## Critical Rules
 
@@ -56,6 +59,8 @@ For detailed information, see the `docs/` folder:
 > ⚠️ **No Third-Party Frameworks** — Do not introduce third-party dependencies without asking first.
 
 > ⚠️ **Prefer API over WebView** — Always use `YTMusicClient` API calls when functionality exists. Only use WebView for playback (DRM-protected audio) and authentication. API calls are faster, more testable, and reduce WebView complexity.
+
+> 📝 **Document Architectural Decisions** — For significant design changes, create an ADR in `docs/adr/` following the format in [docs/adr/README.md](docs/adr/README.md).
 
 ### Build & Verify
 
@@ -119,7 +124,7 @@ GlassEffectContainer(spacing: 0) {
 
 **Key Views requiring PlayerBar**:
 - `HomeView` (on NavigationStack)
-- `LibraryView` (on NavigationStack)  
+- `LibraryView` (on NavigationStack)
 - `SearchView` (on VStack)
 - `PlaylistDetailView` (on Group)
 
@@ -135,7 +140,7 @@ GlassEffectContainer(spacing: 0) {
           // Do NOT call: try await super.setUp()
           // Set up test fixtures here
       }
-      
+
       override func tearDown() async throws {
           // Clean up here
           // Do NOT call: try await super.tearDown()

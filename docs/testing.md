@@ -28,6 +28,21 @@ xcodebuild -scheme Kaset -destination 'platform=macOS' build
 swiftlint --strict && swiftformat .
 ```
 
+## Test Structure
+
+```
+Tests/KasetTests/
+├── Helpers/
+│   ├── MockURLProtocol.swift    # Network mocking
+│   ├── MockYTMusicClient.swift  # API client mock
+│   └── TestFixtures.swift       # Fixture loading utilities
+├── Fixtures/
+│   ├── home_response.json       # Sample API responses
+│   ├── search_response.json
+│   └── playlist_detail.json
+├── *Tests.swift                 # Test files
+```
+
 ## Unit Test Requirements
 
 New code in `Core/` (Services, Models, ViewModels, Utilities) must include unit tests.
@@ -83,7 +98,7 @@ final class PlayerServiceTests: XCTestCase {
         // ⚠️ Do NOT call: try await super.setUp()
         // XCTestCase is not Sendable, calling super crosses actor boundaries
     }
-    
+
     override func tearDown() async throws {
         // ⚠️ Do NOT call: try await super.tearDown()
     }
@@ -129,10 +144,10 @@ Test business logic in isolation:
 func testAuthServiceLoginState() async {
     // Given
     let authService = AuthService()
-    
+
     // When
     authService.startLogin()
-    
+
     // Then
     XCTAssertEqual(authService.state, .loggingIn)
 }
@@ -147,9 +162,9 @@ func testSongDecoding() throws {
     let json = """
     {"videoId": "abc123", "title": "Test Song", "artist": "Test Artist"}
     """.data(using: .utf8)!
-    
+
     let song = try JSONDecoder().decode(Song.self, from: json)
-    
+
     XCTAssertEqual(song.videoId, "abc123")
     XCTAssertEqual(song.title, "Test Song")
 }
@@ -162,49 +177,85 @@ Test state management and loading:
 ```swift
 func testHomeViewModelLoading() async throws {
     let viewModel = HomeViewModel(client: mockClient)
-    
+
     await viewModel.load()
-    
+
     XCTAssertFalse(viewModel.isLoading)
     XCTAssertFalse(viewModel.sections.isEmpty)
 }
 ```
 
-## Mocking Guidelines
+### Parser Tests
 
-### Mock Services
-
-Create protocol-based mocks for dependencies:
+Test API response parsing with mock data:
 
 ```swift
-protocol YTMusicClientProtocol {
-    func getHome() async throws -> HomeResponse
-}
+func testParseHomeResponse() {
+    let data = makeHomeResponseData(sectionCount: 3)
 
-class MockYTMusicClient: YTMusicClientProtocol {
-    var homeResponse: HomeResponse?
-    var error: Error?
-    
-    func getHome() async throws -> HomeResponse {
-        if let error { throw error }
-        return homeResponse!
-    }
+    let (sections, token) = HomeResponseParser.parse(data)
+
+    XCTAssertEqual(sections.count, 3)
 }
 ```
 
-### Dependency Injection
+Parser tests use helper methods to construct mock JSON structures, enabling comprehensive testing without network calls.
 
-Services should accept dependencies for testing:
+## Mocking Guidelines
+
+### MockYTMusicClient
+
+The project includes a ready-to-use mock client:
 
 ```swift
-@MainActor @Observable
-final class HomeViewModel {
-    private let client: YTMusicClientProtocol
-    
-    init(client: YTMusicClientProtocol = YTMusicClient.shared) {
-        self.client = client
+// Tests/KasetTests/Helpers/MockYTMusicClient.swift
+final class MockYTMusicClient: YTMusicClientProtocol, @unchecked Sendable {
+    var homeResponse: HomeResponse?
+    var searchResponse: SearchResponse?
+    var error: Error?
+
+    func getHome() async throws -> HomeResponse {
+        if let error { throw error }
+        return homeResponse ?? HomeResponse(sections: [], continuationToken: nil)
     }
+    // ... other methods
 }
+```
+
+**Usage in tests**:
+```swift
+func testHomeViewModelLoading() async throws {
+    let mockClient = MockYTMusicClient()
+    mockClient.homeResponse = HomeResponse(sections: [...], continuationToken: nil)
+
+    let viewModel = HomeViewModel(client: mockClient)
+    await viewModel.load()
+
+    XCTAssertFalse(viewModel.sections.isEmpty)
+}
+```
+
+### MockURLProtocol
+
+For lower-level network testing:
+
+```swift
+// Tests/KasetTests/Helpers/MockURLProtocol.swift
+MockURLProtocol.requestHandler = { request in
+    let data = TestFixtures.loadJSON("home_response")
+    let response = HTTPURLResponse(url: request.url!, statusCode: 200, ...)
+    return (response, data)
+}
+```
+
+### TestFixtures
+
+Load JSON fixtures from the `Fixtures/` directory:
+
+```swift
+// Tests/KasetTests/Helpers/TestFixtures.swift
+let data = TestFixtures.loadJSON("home_response")  // Loads home_response.json
+let dict = TestFixtures.loadJSONDict("search_response")
 ```
 
 ## Accessibility Testing
@@ -291,16 +342,16 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_15.app
-      
+
       - name: Build
         run: xcodebuild -scheme Kaset -destination 'platform=macOS' build
-      
+
       - name: Test
         run: xcodebuild -scheme Kaset -destination 'platform=macOS' test
-      
+
       - name: Lint
         run: swiftlint --strict
 ```

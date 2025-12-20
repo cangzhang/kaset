@@ -15,7 +15,7 @@ private extension Array {
 /// Controls music playback via a hidden WKWebView.
 @MainActor
 @Observable
-final class PlayerService: NSObject {
+final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Current playback state.
     enum PlaybackState: Equatable, Sendable {
         case idle
@@ -88,6 +88,9 @@ final class PlayerService: NSObject {
 
     /// Like status of the current track.
     private(set) var currentTrackLikeStatus: LikeStatus = .indifferent
+
+    /// Whether the current track is in the user's library.
+    private(set) var currentTrackInLibrary: Bool = false
 
     // MARK: - Private Properties
 
@@ -463,14 +466,24 @@ final class PlayerService: NSObject {
         }
     }
 
+    /// Toggles the library status of the current track.
+    func toggleLibraryStatus() {
+        guard currentTrack != nil else { return }
+        logger.info("Toggling library status for current track")
+
+        currentTrackInLibrary.toggle()
+        SingletonPlayerWebView.shared.clickAddToLibraryButton()
+    }
+
     /// Updates the like status from WebView observation.
     func updateLikeStatus(_ status: LikeStatus) {
         currentTrackLikeStatus = status
     }
 
-    /// Resets like status when track changes.
+    /// Resets like/library status when track changes.
     private func resetTrackStatus() {
         currentTrackLikeStatus = .indifferent
+        currentTrackInLibrary = false
     }
 
     // MARK: - Private Methods

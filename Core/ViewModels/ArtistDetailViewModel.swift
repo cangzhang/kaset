@@ -21,10 +21,10 @@ final class ArtistDetailViewModel {
     private(set) var artistDetail: ArtistDetail?
 
     private let artist: Artist
-    private let client: YTMusicClient
+    private let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
-    init(artist: Artist, client: YTMusicClient) {
+    init(artist: Artist, client: any YTMusicClientProtocol) {
         self.artist = artist
         self.client = client
     }

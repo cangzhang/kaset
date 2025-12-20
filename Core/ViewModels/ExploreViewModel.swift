@@ -21,10 +21,10 @@ final class ExploreViewModel {
     private(set) var sections: [HomeSection] = []
 
     /// The API client (exposed for navigation to detail views).
-    let client: YTMusicClient
+    let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
-    init(client: YTMusicClient) {
+    init(client: any YTMusicClientProtocol) {
         self.client = client
     }
 

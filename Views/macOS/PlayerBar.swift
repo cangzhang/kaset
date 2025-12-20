@@ -254,7 +254,7 @@ struct PlayerBar: View {
         }
     }
 
-    // MARK: - Action Buttons (Like/Dislike)
+// MARK: - Action Buttons (Like/Dislike/Library)
 
     private var actionButtons: some View {
         HStack(spacing: 12) {
@@ -286,6 +286,20 @@ struct PlayerBar: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Like")
             .accessibilityValue(playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked")
+            .disabled(playerService.currentTrack == nil)
+
+            // Add to Library button
+            Button {
+                playerService.toggleLibraryStatus()
+            } label: {
+                Image(systemName: playerService.currentTrackInLibrary
+                    ? "plus.circle.fill"
+                    : "plus.circle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(playerService.currentTrackInLibrary ? .red : .primary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(playerService.currentTrackInLibrary ? "Remove from Library" : "Add to Library")
             .disabled(playerService.currentTrack == nil)
         }
     }

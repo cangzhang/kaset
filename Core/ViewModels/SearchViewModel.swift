@@ -61,11 +61,11 @@ final class SearchViewModel {
         }
     }
 
-    let client: YTMusicClient
+    let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
     private var searchTask: Task<Void, Never>?
 
-    init(client: YTMusicClient) {
+    init(client: any YTMusicClientProtocol) {
         self.client = client
     }
 

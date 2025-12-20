@@ -241,6 +241,14 @@ struct PlaylistDetailView: View {
             } label: {
                 Label("Dislike", systemImage: "hand.thumbsdown")
             }
+
+            Divider()
+
+            Button {
+                addToLibrary(track)
+            } label: {
+                Label("Add to Library", systemImage: "plus.circle")
+            }
         }
     }
 
@@ -320,6 +328,14 @@ struct PlaylistDetailView: View {
             } catch {
                 DiagnosticsLogger.api.error("Failed to toggle library status: \(error.localizedDescription)")
             }
+        }
+    }
+
+    private func addToLibrary(_ song: Song) {
+        Task {
+            await playerService.play(song: song)
+            try? await Task.sleep(for: .milliseconds(100))
+            playerService.toggleLibraryStatus()
         }
     }
 }

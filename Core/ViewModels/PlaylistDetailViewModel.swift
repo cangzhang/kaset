@@ -22,10 +22,10 @@ final class PlaylistDetailViewModel {
 
     private let playlist: Playlist
     /// The API client (exposed for add to library action).
-    let client: YTMusicClient
+    let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
-    init(playlist: Playlist, client: YTMusicClient) {
+    init(playlist: Playlist, client: any YTMusicClientProtocol) {
         self.playlist = playlist
         self.client = client
     }

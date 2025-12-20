@@ -11,7 +11,7 @@ App/                → App entry point, AppDelegate
 Core/               → Shared logic (platform-independent)
   ├── Models/       → Data types (Song, Playlist, Album, Artist, etc.)
   ├── Services/     → Business logic
-  │   ├── API/      → YTMusicClient (YouTube Music API)
+  │   ├── API/      → YTMusicClient, Parsers/
   │   ├── Auth/     → AuthService (login state machine)
   │   ├── Player/   → PlayerService, NowPlayingManager
   │   └── WebKit/   → WebKitManager (cookie persistence)
@@ -20,6 +20,32 @@ Core/               → Shared logic (platform-independent)
 Views/
   └── macOS/        → SwiftUI views (MainWindow, Sidebar, PlayerBar, etc.)
 Tests/              → Unit tests (KasetTests/)
+docs/               → Documentation
+  └── adr/          → Architecture Decision Records
+```
+
+## Service Protocols
+
+All major services have protocol definitions for testability:
+
+```swift
+// Core/Services/Protocols.swift
+protocol YTMusicClientProtocol: Sendable { ... }
+protocol AuthServiceProtocol { ... }
+protocol PlayerServiceProtocol { ... }
+```
+
+ViewModels accept protocols via dependency injection with default implementations:
+
+```swift
+@MainActor @Observable
+final class HomeViewModel {
+    private let client: YTMusicClientProtocol
+
+    init(client: YTMusicClientProtocol = YTMusicClient.shared) {
+        self.client = client
+    }
+}
 ```
 
 ## State Management
@@ -45,7 +71,7 @@ Manages WebKit infrastructure for the app:
 @MainActor @Observable
 final class WebKitManager {
     static let shared = WebKitManager()
-    
+
     func getAllCookies() async -> [HTTPCookie]
     func createWebViewConfiguration() -> WKWebViewConfiguration
 }
@@ -77,6 +103,7 @@ Makes authenticated requests to YouTube Music's internal API:
 - Computes `SAPISIDHASH` authorization per request
 - Uses browser-style headers to avoid bot detection
 - Throws `YTMusicError.authExpired` on 401/403
+- Delegates response parsing to modular parsers
 
 **Endpoints**:
 - `getHome()` → Home page sections
@@ -84,6 +111,22 @@ Makes authenticated requests to YouTube Music's internal API:
 - `search(query:)` → Search results
 - `getLibraryPlaylists()` → User's playlists
 - `getPlaylist(id:)` → Playlist details
+
+### API Parsers
+
+**Directory**: `Core/Services/API/Parsers/`
+
+Response parsing is extracted into specialized modules:
+
+| Parser | Purpose |
+|--------|---------|
+| `ParsingHelpers.swift` | Shared utilities (thumbnails, artists, duration) |
+| `HomeResponseParser.swift` | Home/Explore page sections |
+| `SearchResponseParser.swift` | Search results |
+| `PlaylistParser.swift` | Playlist details, library playlists |
+| `ArtistParser.swift` | Artist details |
+
+**Design**: Static enum-based parsers with pure functions for testability.
 
 ### PlayerService
 
@@ -120,7 +163,7 @@ Manages the singleton WebView for playback:
 @MainActor
 final class SingletonPlayerWebView {
     static let shared = SingletonPlayerWebView()
-    
+
     func getWebView(webKitManager:, playerService:) -> WKWebView
     func loadVideo(videoId: String)
 }
@@ -285,9 +328,38 @@ Unified error type for the app:
 | Error | Description |
 |-------|-------------|
 | `.authExpired` | Session invalid (401/403) |
+| `.notAuthenticated` | No valid session |
 | `.networkError` | Connection failed |
 | `.parseError` | JSON decoding failed |
-| `.notLoggedIn` | No valid session |
+| `.apiError` | API returned error with code |
+| `.playbackError` | Playback-related failure |
+| `.unknown` | Generic error |
+
+### ErrorPresenter
+
+**File**: `Core/Services/ErrorPresenter.swift`
+
+Centralized service for presenting errors to users:
+
+```swift
+@MainActor @Observable
+final class ErrorPresenter {
+    static let shared = ErrorPresenter()
+
+    var currentError: PresentableError?
+    var isShowingError: Bool
+
+    func present(_ error: YTMusicError, retryAction: (() async -> Void)?)
+    func present(_ error: Error, retryAction: (() async -> Void)?)
+    func dismiss()
+    func retry() async
+}
+```
+
+**PresentableError** converts technical errors to user-friendly messages:
+- Network errors → "Connection Error"
+- API errors → "Server Error (Error XXX)"
+- Auth errors → "Session Expired"
 
 ### Error Flow
 

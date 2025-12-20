@@ -296,17 +296,47 @@ struct SearchView: View {
                 Label("Dislike", systemImage: "hand.thumbsdown")
             }
 
+            Divider()
+
+            Button {
+                addToLibrary(song)
+            } label: {
+                Label("Add to Library", systemImage: "plus.circle")
+            }
+
         case let .album(album):
-            EmptyView()
+            Button {
+                let playlist = Playlist(
+                    id: album.id,
+                    title: album.title,
+                    description: nil,
+                    thumbnailURL: album.thumbnailURL,
+                    trackCount: album.trackCount,
+                    author: album.artistsDisplay
+                )
+                navigationPath.append(playlist)
+            } label: {
+                Label("View Album", systemImage: "square.stack")
+            }
 
         case let .artist(artist):
-            EmptyView()
+            Button {
+                navigationPath.append(artist)
+            } label: {
+                Label("View Artist", systemImage: "person")
+            }
 
         case let .playlist(playlist):
             Button {
                 addPlaylistToLibrary(playlist)
             } label: {
                 Label("Add to Library", systemImage: "plus.circle")
+            }
+
+            Button {
+                navigationPath.append(playlist)
+            } label: {
+                Label("View Playlist", systemImage: "music.note.list")
             }
         }
     }
@@ -341,6 +371,14 @@ struct SearchView: View {
             } catch {
                 DiagnosticsLogger.api.error("Failed to add playlist to library: \(error.localizedDescription)")
             }
+        }
+    }
+
+    private func addToLibrary(_ song: Song) {
+        Task {
+            await playerService.play(song: song)
+            try? await Task.sleep(for: .milliseconds(100))
+            playerService.toggleLibraryStatus()
         }
     }
 

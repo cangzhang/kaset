@@ -33,10 +33,10 @@ final class LibraryViewModel {
     private(set) var playlistDetailLoadingState: LoadingState = .idle
 
     /// The API client (exposed for navigation to detail views).
-    let client: YTMusicClient
+    let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
-    init(client: YTMusicClient) {
+    init(client: any YTMusicClientProtocol) {
         self.client = client
         // Set shared instance for global access
         LibraryViewModel.shared = self

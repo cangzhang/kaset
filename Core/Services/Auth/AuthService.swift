@@ -5,7 +5,7 @@ import os
 /// Manages authentication state for YouTube Music.
 @MainActor
 @Observable
-final class AuthService {
+final class AuthService: AuthServiceProtocol {
     /// Authentication states.
     enum State: Equatable, Sendable {
         case initializing
