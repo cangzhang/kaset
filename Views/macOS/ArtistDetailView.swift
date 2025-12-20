@@ -72,7 +72,7 @@ struct ArtistDetailView: View {
     private func headerView(_ detail: ArtistDetail) -> some View {
         HStack(alignment: .top, spacing: 20) {
             // Thumbnail
-            AsyncImage(url: detail.thumbnailURL?.highQualityThumbnailURL) { image in
+            CachedAsyncImage(url: detail.thumbnailURL?.highQualityThumbnailURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -221,7 +221,7 @@ struct ArtistDetailView: View {
     private func albumCard(_ album: Album) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             // Thumbnail
-            AsyncImage(url: album.thumbnailURL?.highQualityThumbnailURL) { image in
+            CachedAsyncImage(url: album.thumbnailURL?.highQualityThumbnailURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)

@@ -65,7 +65,7 @@ struct PlaylistDetailView: View {
     private func headerView(_ detail: PlaylistDetail) -> some View {
         HStack(alignment: .top, spacing: 20) {
             // Thumbnail
-            AsyncImage(url: detail.thumbnailURL?.highQualityThumbnailURL) { image in
+            CachedAsyncImage(url: detail.thumbnailURL?.highQualityThumbnailURL) { image in
                 image
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -158,7 +158,7 @@ struct PlaylistDetailView: View {
                 // Thumbnail - only show for playlists (different album art per track)
                 // Albums share the same artwork, so we hide per-track thumbnails
                 if !isAlbum {
-                    AsyncImage(url: track.thumbnailURL) { image in
+                    CachedAsyncImage(url: track.thumbnailURL) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)

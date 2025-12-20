@@ -96,6 +96,9 @@ struct HomeView: View {
                 }
             }
         }
+        .onAppear {
+            prefetchImages(for: section)
+        }
     }
 
     /// Renders a chart section as a vertical numbered list.
@@ -168,7 +171,7 @@ struct HomeView: View {
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 // Thumbnail
-                AsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
@@ -202,6 +205,19 @@ struct HomeView: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Image Prefetching
+
+    /// Prefetches images for items that will soon be visible.
+    private func prefetchImages(for section: HomeSection) {
+        Task.detached(priority: .utility) {
+            for item in section.items.prefix(10) {
+                if let url = item.thumbnailURL?.highQualityThumbnailURL {
+                    _ = await ImageCache.shared.image(for: url)
+                }
+            }
+        }
     }
 
     private func errorView(message: String) -> some View {

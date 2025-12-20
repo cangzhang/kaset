@@ -199,7 +199,7 @@ struct SearchView: View {
         } label: {
             HStack(spacing: 12) {
                 // Thumbnail
-                AsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

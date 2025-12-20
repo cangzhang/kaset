@@ -112,7 +112,7 @@ struct LibraryView: View {
         } label: {
             VStack(alignment: .leading, spacing: 8) {
                 // Thumbnail
-                AsyncImage(url: playlist.thumbnailURL?.highQualityThumbnailURL) { image in
+                CachedAsyncImage(url: playlist.thumbnailURL?.highQualityThumbnailURL) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
