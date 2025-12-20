@@ -113,6 +113,8 @@ struct MainWindow: View {
         switch item {
         case .home:
             HomeView(viewModel: HomeViewModel(client: client))
+        case .explore:
+            ExploreView(viewModel: ExploreViewModel(client: client))
         case .search:
             SearchView(viewModel: SearchViewModel(client: client))
         case .library:
@@ -164,6 +166,7 @@ struct MainWindow: View {
 
 enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case home = "Home"
+    case explore = "Explore"
     case search = "Search"
     case library = "Library"
 
@@ -173,6 +176,8 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
         switch self {
         case .home:
             "house"
+        case .explore:
+            "globe"
         case .search:
             "magnifyingglass"
         case .library:

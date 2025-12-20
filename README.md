@@ -10,7 +10,8 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 - 🎧 **YouTube Music Premium Support** — Full playback of DRM-protected content via your existing subscription
 - 🎛️ **System Integration** — Now Playing in Control Center, media key support, Dock menu controls
 - 🔊 **Background Audio** — Music continues playing when the window is closed; stops on quit
-- 📚 **Library Access** — Browse your playlists, liked songs, albums, and artists
+- � **Explore** — Discover new releases, charts, and moods & genres
+- �📚 **Library Access** — Browse your playlists, liked songs, albums, and artists
 - 🔍 **Search** — Find songs, albums, artists, and playlists
 
 ## Requirements
@@ -24,42 +25,19 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 
 Download the latest release from the [Releases](https://github.com/sozercan/kaset/releases) page.
 
-### Build from Source
+### Homebrew
 
-1. Clone the repository
-2. Open `Kaset.xcodeproj` in Xcode 16.0+
-3. Build and run (⌘R)
+```bash
+brew tap sozercan/kaset
+brew install --cask --no-quarantine kaset
+```
 
-## Usage
-
-### Sign In
-
-When you first launch Kaset, you'll be prompted to sign in to your YouTube Music account. This is done through an in-app browser that securely captures your session cookies.
-
-### Playback
-
-- Click any song to start playback
-- Use the player bar at the bottom to control playback
-- Use media keys (play/pause, next, previous) to control playback from anywhere
-
-### Background Listening
-
-- Close the window (⌘W) to continue listening in the background
-- Click the Dock icon to bring the window back
-- Quit the app (⌘Q) to stop playback
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| Space | Play/Pause |
-| ⌘W | Close window (audio continues) |
-| ⌘Q | Quit (audio stops) |
+> **Note:** The `--no-quarantine` flag is required because the app is not signed.
+> If you downloaded the app manually, you can remove the quarantine attribute with:
+> ```bash
+> xattr -d com.apple.quarantine /Applications/Kaset.app
+> ```
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and coding guidelines.
-
-## License
-
-This project is for educational purposes only.

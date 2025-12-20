@@ -80,6 +80,7 @@ Makes authenticated requests to YouTube Music's internal API:
 
 **Endpoints**:
 - `getHome()` → Home page sections
+- `getExplore()` → Explore page (new releases, charts, moods)
 - `search(query:)` → Search results
 - `getLibraryPlaylists()` → User's playlists
 - `getPlaylist(id:)` → Playlist details

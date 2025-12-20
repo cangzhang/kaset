@@ -16,6 +16,10 @@ struct Sidebar: View {
                 NavigationLink(value: NavigationItem.home) {
                     Label("Home", systemImage: "house")
                 }
+
+                NavigationLink(value: NavigationItem.explore) {
+                    Label("Explore", systemImage: "globe")
+                }
             }
 
             // Library section

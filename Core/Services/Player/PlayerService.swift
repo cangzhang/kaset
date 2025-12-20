@@ -31,6 +31,13 @@ final class PlayerService: NSObject {
         }
     }
 
+    /// Repeat mode for playback.
+    enum RepeatMode: Sendable {
+        case off
+        case all
+        case one
+    }
+
     // MARK: - Observable State
 
     /// Current playback state.
@@ -50,6 +57,12 @@ final class PlayerService: NSObject {
 
     /// Current volume (0.0 - 1.0).
     private(set) var volume: Double = 1.0
+
+    /// Whether shuffle mode is enabled.
+    private(set) var shuffleEnabled: Bool = false
+
+    /// Current repeat mode.
+    private(set) var repeatMode: RepeatMode = .off
 
     /// Playback queue.
     private(set) var queue: [Song] = []
@@ -196,13 +209,37 @@ final class PlayerService: NSObject {
 
         // Prioritize local queue if we have one
         if !queue.isEmpty {
+            // Handle repeat one mode - replay current track
+            if repeatMode == .one {
+                await seek(to: 0)
+                await resume()
+                return
+            }
+
+            // Handle shuffle mode - pick random track
+            if shuffleEnabled {
+                let randomIndex = Int.random(in: 0 ..< queue.count)
+                currentIndex = randomIndex
+                if let nextSong = queue[safe: currentIndex] {
+                    await play(song: nextSong)
+                }
+                return
+            }
+
+            // Normal next behavior
             if currentIndex < queue.count - 1 {
                 currentIndex += 1
                 if let nextSong = queue[safe: currentIndex] {
                     await play(song: nextSong)
                 }
+            } else if repeatMode == .all {
+                // Loop back to start if repeat all is enabled
+                currentIndex = 0
+                if let firstSong = queue.first {
+                    await play(song: firstSong)
+                }
             }
-            // At end of queue, don't do anything
+            // At end of queue with repeat off, don't do anything
             return
         }
 
@@ -274,6 +311,25 @@ final class PlayerService: NSObject {
         } else {
             await evaluatePlayerCommand("setVolume(\(Int(clampedValue * 100)))")
         }
+    }
+
+    /// Toggles shuffle mode.
+    func toggleShuffle() {
+        shuffleEnabled.toggle()
+        logger.info("Shuffle mode: \(self.shuffleEnabled ? "enabled" : "disabled")")
+    }
+
+    /// Cycles through repeat modes: off -> all -> one -> off.
+    func cycleRepeatMode() {
+        switch repeatMode {
+        case .off:
+            repeatMode = .all
+        case .all:
+            repeatMode = .one
+        case .one:
+            repeatMode = .off
+        }
+        logger.info("Repeat mode: \(String(describing: self.repeatMode))")
     }
 
     /// Stops playback and clears state.

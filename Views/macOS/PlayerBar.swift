@@ -136,7 +136,19 @@ struct PlayerBar: View {
     // MARK: - Playback Controls
 
     private var playbackControls: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 16) {
+            // Shuffle
+            Button {
+                playerService.toggleShuffle()
+            } label: {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(playerService.shuffleEnabled ? .red : .primary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Shuffle")
+            .accessibilityValue(playerService.shuffleEnabled ? "On" : "Off")
+
             // Previous
             Button {
                 Task {
@@ -175,6 +187,38 @@ struct PlayerBar: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Next track")
+
+            // Repeat
+            Button {
+                playerService.cycleRepeatMode()
+            } label: {
+                Image(systemName: repeatIcon)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(playerService.repeatMode != .off ? .red : .primary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Repeat")
+            .accessibilityValue(repeatAccessibilityValue)
+        }
+    }
+
+    private var repeatIcon: String {
+        switch playerService.repeatMode {
+        case .off, .all:
+            "repeat"
+        case .one:
+            "repeat.1"
+        }
+    }
+
+    private var repeatAccessibilityValue: String {
+        switch playerService.repeatMode {
+        case .off:
+            "Off"
+        case .all:
+            "All"
+        case .one:
+            "One"
         }
     }
 

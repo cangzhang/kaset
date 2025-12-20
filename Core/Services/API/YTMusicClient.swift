@@ -67,6 +67,41 @@ final class YTMusicClient {
         return response
     }
 
+    /// Fetches the explore page content with all sections.
+    func getExplore() async throws -> HomeResponse {
+        logger.info("Fetching explore page")
+
+        let body: [String: Any] = [
+            "browseId": "FEmusic_explore",
+        ]
+
+        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
+        var response = parseHomeResponse(data)
+
+        // Fetch continuation sections if available
+        var continuationToken = extractContinuationToken(from: data)
+        var continuationCount = 0
+        let maxContinuations = 10
+
+        while let token = continuationToken, continuationCount < maxContinuations {
+            continuationCount += 1
+            logger.info("Fetching explore continuation \(continuationCount)")
+
+            do {
+                let continuationData = try await requestContinuation(token)
+                let additionalSections = parseContinuationResponse(continuationData)
+                response = HomeResponse(sections: response.sections + additionalSections)
+                continuationToken = extractContinuationTokenFromContinuation(continuationData)
+            } catch {
+                logger.warning("Failed to fetch continuation: \(error.localizedDescription)")
+                break
+            }
+        }
+
+        logger.info("Total explore sections after continuations: \(response.sections.count)")
+        return response
+    }
+
     /// Makes a continuation request.
     private func requestContinuation(_ token: String) async throws -> [String: Any] {
         let body: [String: Any] = [
