@@ -136,7 +136,7 @@ struct PlaylistDetailView: View {
 
                 if index < tracks.count - 1 {
                     Divider()
-                        .padding(.leading, 44)
+                        .padding(.leading, 96) // 28 (index) + 12 (spacing) + 40 (thumbnail) + 16 (spacing)
                 }
             }
         }
@@ -152,6 +152,18 @@ struct PlaylistDetailView: View {
                     .font(.system(size: 14, design: .monospaced))
                     .foregroundStyle(.secondary)
                     .frame(width: 28, alignment: .trailing)
+
+                // Thumbnail - playlists have different album art per track
+                AsyncImage(url: track.thumbnailURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(.quaternary)
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(.rect(cornerRadius: 4))
 
                 // Title and artist
                 VStack(alignment: .leading, spacing: 2) {
