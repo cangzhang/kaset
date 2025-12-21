@@ -50,16 +50,18 @@ enum CookieBackupManager {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: true,
         ]
         SecItemDelete(deleteQuery as CFDictionary)
 
-        // Add new item
+        // Add new item using the data protection keychain (no password prompts)
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecUseDataProtectionKeychain as String: true,
         ]
 
         let status = SecItemAdd(addQuery as CFDictionary, nil)
@@ -78,6 +80,7 @@ enum CookieBackupManager {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
+            kSecUseDataProtectionKeychain as String: true,
         ]
 
         var result: AnyObject?
@@ -127,6 +130,7 @@ enum CookieBackupManager {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecUseDataProtectionKeychain as String: true,
         ]
         SecItemDelete(query as CFDictionary)
         logger.info("Cleared cookie backup from Keychain")
@@ -138,7 +142,7 @@ enum CookieBackupManager {
 /// Manages WebKit data store for persistent cookies and session management.
 @MainActor
 @Observable
-final class WebKitManager: NSObject {
+final class WebKitManager: NSObject, WebKitManagerProtocol {
     /// Shared singleton instance.
     static let shared = WebKitManager()
 
@@ -175,24 +179,47 @@ final class WebKitManager: NSObject {
         // Observe cookie changes
         dataStore.httpCookieStore.add(self)
 
-        // Force cookie store to load by accessing it
-        // This helps with lazy-loading issues on cold start
+        // Always restore auth cookies from Keychain on startup
+        // Keychain is our source of truth since WebKit storage is unreliable
+        // during development (sandbox container changes with code signing)
         Task {
-            var cookies = await dataStore.httpCookieStore.allCookies()
-            logger.info("WebKitManager initialized - loaded \(cookies.count) cookies from persistent store")
-
-            // If WebKit lost cookies, try to restore from Keychain backup
-            if cookies.isEmpty, let backupCookies = CookieBackupManager.restoreCookies() {
-                logger.info("Restoring \(backupCookies.count) cookies from Keychain backup")
-                for cookie in backupCookies {
-                    await dataStore.httpCookieStore.setCookie(cookie)
-                }
-                cookies = await dataStore.httpCookieStore.allCookies()
-                logger.info("After restore: \(cookies.count) cookies in store")
-            }
+            await restoreAuthCookiesFromKeychain()
         }
 
         logger.info("WebKitManager initialized with persistent data store")
+    }
+
+    /// Restores auth cookies from Keychain to WebKit.
+    /// Keychain is the source of truth - always restore on startup.
+    private func restoreAuthCookiesFromKeychain() async {
+        // Wait a moment for WebKit to fully initialize
+        try? await Task.sleep(for: .milliseconds(100))
+
+        let existingCookies = await dataStore.httpCookieStore.allCookies()
+        logger.info("WebKit has \(existingCookies.count) cookies on startup")
+
+        // Always restore from Keychain if we have a backup
+        guard let backupCookies = CookieBackupManager.restoreCookies() else {
+            logger.info("No cookie backup in Keychain (first run or signed out)")
+            return
+        }
+
+        logger.info("Restoring \(backupCookies.count) auth cookies from Keychain")
+
+        // Set each cookie in WebKit
+        for cookie in backupCookies {
+            await dataStore.httpCookieStore.setCookie(cookie)
+        }
+
+        // Verify restore
+        let cookies = await dataStore.httpCookieStore.allCookies()
+        let hasAuth = cookies.contains { $0.name == "SAPISID" || $0.name == "__Secure-3PAPISID" }
+
+        if hasAuth {
+            logger.info("✓ Auth cookies restored from Keychain (\(cookies.count) total cookies)")
+        } else {
+            logger.error("✗ Failed to restore auth cookies - backup may be corrupted")
+        }
     }
 
     /// Creates a WebView configuration using the shared persistent data store.

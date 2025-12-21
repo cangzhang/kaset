@@ -5,13 +5,16 @@ import XCTest
 @MainActor
 final class AuthServiceTests: XCTestCase {
     var authService: AuthService!
+    var mockWebKitManager: MockWebKitManager!
 
     override func setUp() async throws {
-        authService = AuthService()
+        mockWebKitManager = MockWebKitManager()
+        authService = AuthService(webKitManager: mockWebKitManager)
     }
 
     override func tearDown() async throws {
         authService = nil
+        mockWebKitManager = nil
     }
 
     func testInitialState() {
@@ -62,6 +65,8 @@ final class AuthServiceTests: XCTestCase {
 
         XCTAssertEqual(authService.state, .loggedOut)
         XCTAssertFalse(authService.needsReauth)
+        // Verify mock was called (not real WebKit/Keychain)
+        XCTAssertTrue(mockWebKitManager.clearAllDataCalled)
     }
 
     func testStateEquatable() {

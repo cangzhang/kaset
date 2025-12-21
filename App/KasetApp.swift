@@ -54,7 +54,14 @@ struct KasetApp: App {
         let auth = AuthService()
         let webkit = WebKitManager.shared
         let player = PlayerService()
-        let client = YTMusicClient(authService: auth, webKitManager: webkit)
+
+        // Use mock client in UI test mode, real client otherwise
+        let realClient = YTMusicClient(authService: auth, webKitManager: webkit)
+        let client: YTMusicClientProtocol = if UITestConfig.isUITestMode {
+            MockUITestYTMusicClient()
+        } else {
+            realClient
+        }
 
         // Wire up dependencies
         player.setYTMusicClient(client)
@@ -62,22 +69,32 @@ struct KasetApp: App {
         _authService = State(initialValue: auth)
         _webKitManager = State(initialValue: webkit)
         _playerService = State(initialValue: player)
-        _ytMusicClient = State(initialValue: client)
+        _ytMusicClient = State(initialValue: UITestConfig.isUITestMode ? nil : realClient)
         _notificationService = State(initialValue: NotificationService(playerService: player))
+
+        if UITestConfig.isUITestMode {
+            DiagnosticsLogger.ui.info("App launched in UI Test mode")
+        }
     }
 
     var body: some Scene {
         WindowGroup {
-            MainWindow(navigationSelection: $navigationSelection)
-                .environment(authService)
-                .environment(webKitManager)
-                .environment(playerService)
-                .environment(\.searchFocusTrigger, $searchFocusTrigger)
-                .environment(\.navigationSelection, $navigationSelection)
-                .task {
-                    // Check if user is already logged in from previous session
-                    await authService.checkLoginStatus()
-                }
+            // Skip UI during unit tests to prevent window spam
+            if UITestConfig.isRunningUnitTests && !UITestConfig.isUITestMode {
+                Color.clear
+                    .frame(width: 1, height: 1)
+            } else {
+                MainWindow(navigationSelection: $navigationSelection)
+                    .environment(authService)
+                    .environment(webKitManager)
+                    .environment(playerService)
+                    .environment(\.searchFocusTrigger, $searchFocusTrigger)
+                    .environment(\.navigationSelection, $navigationSelection)
+                    .task {
+                        // Check if user is already logged in from previous session
+                        await authService.checkLoginStatus()
+                    }
+            }
         }
         .commands {
             // App commands

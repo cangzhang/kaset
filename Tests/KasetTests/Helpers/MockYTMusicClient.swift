@@ -11,6 +11,7 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     var exploreResponse: HomeResponse = .init(sections: [])
     var exploreContinuationSections: [[HomeSection]] = []
     var searchResponse: SearchResponse = .empty
+    var searchSuggestions: [SearchSuggestion] = []
     var libraryPlaylists: [Playlist] = []
     var likedSongs: [Song] = []
     var playlistDetails: [String: PlaylistDetail] = [:]
@@ -43,6 +44,8 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     private(set) var getExploreContinuationCallCount = 0
     private(set) var searchCalled = false
     private(set) var searchQueries: [String] = []
+    private(set) var getSearchSuggestionsCalled = false
+    private(set) var getSearchSuggestionsQueries: [String] = []
     private(set) var getLibraryPlaylistsCalled = false
     private(set) var getLikedSongsCalled = false
     private(set) var getPlaylistCalled = false
@@ -118,6 +121,13 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         searchQueries.append(query)
         if let error = shouldThrowError { throw error }
         return searchResponse
+    }
+
+    func getSearchSuggestions(query: String) async throws -> [SearchSuggestion] {
+        getSearchSuggestionsCalled = true
+        getSearchSuggestionsQueries.append(query)
+        if let error = shouldThrowError { throw error }
+        return searchSuggestions
     }
 
     func getLibraryPlaylists() async throws -> [Playlist] {
@@ -203,6 +213,16 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         return lyricsResponses[videoId] ?? .unavailable
     }
 
+    func getSong(videoId: String) async throws -> Song {
+        if let error = shouldThrowError { throw error }
+        return Song(
+            id: videoId,
+            title: "Mock Song",
+            artists: [Artist(id: "mock-artist", name: "Mock Artist")],
+            videoId: videoId
+        )
+    }
+
     // MARK: - Helper Methods
 
     /// Resets all call tracking.
@@ -219,6 +239,8 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         _exploreContinuationIndex = 0
         searchCalled = false
         searchQueries = []
+        getSearchSuggestionsCalled = false
+        getSearchSuggestionsQueries = []
         getLibraryPlaylistsCalled = false
         getLikedSongsCalled = false
         getPlaylistCalled = false

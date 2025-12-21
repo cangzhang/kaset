@@ -29,10 +29,10 @@ final class AuthService: AuthServiceProtocol {
     /// Flag indicating whether re-authentication is needed.
     var needsReauth: Bool = false
 
-    private let webKitManager: WebKitManager
+    private let webKitManager: WebKitManagerProtocol
     private let logger = DiagnosticsLogger.auth
 
-    init(webKitManager: WebKitManager = .shared) {
+    init(webKitManager: WebKitManagerProtocol = WebKitManager.shared) {
         self.webKitManager = webKitManager
     }
 
@@ -45,7 +45,18 @@ final class AuthService: AuthServiceProtocol {
     /// Checks if the user is logged in based on existing cookies.
     /// Includes retry logic to handle WebKit cookie store lazy loading.
     func checkLoginStatus() async {
+        // In UI test mode with skip auth, immediately set logged in state
+        if UITestConfig.isUITestMode, UITestConfig.shouldSkipAuth {
+            logger.info("UI Test mode: skipping auth check, assuming logged in")
+            state = .loggedIn(sapisid: "mock-sapisid-for-ui-tests")
+            return
+        }
+
         logger.debug("Checking login status from cookies")
+
+        // Wait for WebKitManager to finish restoring cookies from Keychain
+        // This is important because restoration happens async in init()
+        try? await Task.sleep(for: .milliseconds(500))
 
         // Log detailed cookie info for debugging
         #if DEBUG

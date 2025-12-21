@@ -13,7 +13,14 @@ final class SearchViewModel {
     var query: String = "" {
         didSet {
             searchTask?.cancel()
+            suggestionsTask?.cancel()
             if query.isEmpty {
+                results = .empty
+                suggestions = []
+                loadingState = .idle
+                lastSearchedQuery = nil
+            } else if query != lastSearchedQuery {
+                // Clear results when query changes from what was searched
                 results = .empty
                 loadingState = .idle
             }
@@ -22,6 +29,17 @@ final class SearchViewModel {
 
     /// Search results.
     private(set) var results: SearchResponse = .empty
+
+    /// The query that produced the current results.
+    private var lastSearchedQuery: String?
+
+    /// Search suggestions for autocomplete.
+    private(set) var suggestions: [SearchSuggestion] = []
+
+    /// Whether suggestions should be shown.
+    var showSuggestions: Bool {
+        !query.isEmpty && !suggestions.isEmpty && results.isEmpty
+    }
 
     /// Filter for result types.
     var selectedFilter: SearchFilter = .all
@@ -56,14 +74,68 @@ final class SearchViewModel {
     let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
     private var searchTask: Task<Void, Never>?
+    private var suggestionsTask: Task<Void, Never>?
 
     init(client: any YTMusicClientProtocol) {
         self.client = client
     }
 
+    /// Fetches search suggestions with debounce.
+    func fetchSuggestions() {
+        suggestionsTask?.cancel()
+
+        guard !query.isEmpty else {
+            suggestions = []
+            return
+        }
+
+        suggestionsTask = Task {
+            // Faster debounce for suggestions (150ms vs 300ms for search)
+            try? await Task.sleep(for: .milliseconds(150))
+
+            guard !Task.isCancelled else { return }
+
+            await performFetchSuggestions()
+        }
+    }
+
+    /// Performs the actual suggestions fetch.
+    private func performFetchSuggestions() async {
+        let currentQuery = query
+
+        do {
+            let fetchedSuggestions = try await client.getSearchSuggestions(query: currentQuery)
+            // Only update if query hasn't changed
+            if query == currentQuery {
+                suggestions = fetchedSuggestions
+            }
+        } catch {
+            if !Task.isCancelled {
+                logger.debug("Failed to fetch suggestions: \(error.localizedDescription)")
+                // Don't show error for suggestions - just silently fail
+            }
+        }
+    }
+
+    /// Selects a suggestion and triggers search.
+    func selectSuggestion(_ suggestion: SearchSuggestion) {
+        suggestionsTask?.cancel()
+        suggestions = []
+        query = suggestion.query
+        search()
+    }
+
+    /// Clears suggestions without affecting search.
+    func clearSuggestions() {
+        suggestionsTask?.cancel()
+        suggestions = []
+    }
+
     /// Performs a search with debounce.
     func search() {
         searchTask?.cancel()
+        suggestionsTask?.cancel()
+        suggestions = []
 
         guard !query.isEmpty else {
             results = .empty
@@ -90,6 +162,7 @@ final class SearchViewModel {
         do {
             let searchResults = try await client.search(query: currentQuery)
             results = searchResults
+            lastSearchedQuery = currentQuery
             loadingState = .loaded
             logger.info("Search complete: \(searchResults.allItems.count) results")
         } catch {
@@ -103,8 +176,11 @@ final class SearchViewModel {
     /// Clears search results.
     func clear() {
         searchTask?.cancel()
+        suggestionsTask?.cancel()
         query = ""
         results = .empty
+        suggestions = []
+        lastSearchedQuery = nil
         loadingState = .idle
     }
 }

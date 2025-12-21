@@ -14,6 +14,9 @@ struct SearchView: View {
 
     @FocusState private var isSearchFieldFocused: Bool
 
+    /// Index of currently selected suggestion for keyboard navigation.
+    @State private var selectedSuggestionIndex: Int = -1
+
     /// Initializes SearchView with optional focus trigger binding.
     init(viewModel: SearchViewModel, focusTrigger: Binding<Bool> = .constant(false)) {
         _viewModel = State(initialValue: viewModel)
@@ -52,31 +55,16 @@ struct SearchView: View {
 
     private var searchBar: some View {
         VStack(spacing: 12) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
+            ZStack(alignment: .top) {
+                // Search field
+                searchField
 
-                TextField("Search songs, albums, artists...", text: $viewModel.query)
-                    .textFieldStyle(.plain)
-                    .focused($isSearchFieldFocused)
-                    .onSubmit {
-                        viewModel.search()
-                    }
-
-                if !viewModel.query.isEmpty {
-                    Button {
-                        viewModel.clear()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
+                // Suggestions dropdown
+                if viewModel.showSuggestions {
+                    suggestionsDropdown
+                        .padding(.top, 44) // Below search field
                 }
             }
-            .padding(10)
-            .background(.quaternary.opacity(0.5))
-            .clipShape(.rect(cornerRadius: 8))
 
             // Filter chips
             if !viewModel.results.isEmpty {
@@ -86,8 +74,112 @@ struct SearchView: View {
         .padding(.horizontal, 24)
         .padding(.vertical, 16)
         .onChange(of: viewModel.query) { _, _ in
-            viewModel.search()
+            selectedSuggestionIndex = -1
+            viewModel.fetchSuggestions()
         }
+        .onChange(of: viewModel.suggestions) { _, _ in
+            selectedSuggestionIndex = -1
+        }
+    }
+
+    private var searchField: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+
+            TextField("Search songs, albums, artists...", text: $viewModel.query)
+                .textFieldStyle(.plain)
+                .focused($isSearchFieldFocused)
+                .onSubmit {
+                    if selectedSuggestionIndex >= 0,
+                       selectedSuggestionIndex < viewModel.suggestions.count
+                    {
+                        viewModel.selectSuggestion(viewModel.suggestions[selectedSuggestionIndex])
+                    } else {
+                        viewModel.search()
+                    }
+                }
+                .onKeyPress(.downArrow) {
+                    if viewModel.showSuggestions {
+                        selectedSuggestionIndex = min(
+                            selectedSuggestionIndex + 1,
+                            viewModel.suggestions.count - 1
+                        )
+                        return .handled
+                    }
+                    return .ignored
+                }
+                .onKeyPress(.upArrow) {
+                    if viewModel.showSuggestions {
+                        selectedSuggestionIndex = max(selectedSuggestionIndex - 1, -1)
+                        return .handled
+                    }
+                    return .ignored
+                }
+                .onKeyPress(.escape) {
+                    if viewModel.showSuggestions {
+                        viewModel.clearSuggestions()
+                        return .handled
+                    }
+                    return .ignored
+                }
+
+            if !viewModel.query.isEmpty {
+                Button {
+                    viewModel.clear()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(10)
+        .background(.quaternary.opacity(0.5))
+        .clipShape(.rect(cornerRadius: 8))
+    }
+
+    private var suggestionsDropdown: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(viewModel.suggestions.prefix(7).enumerated()), id: \.element.id) { index, suggestion in
+                suggestionRow(suggestion, index: index)
+                if index < min(viewModel.suggestions.count, 7) - 1 {
+                    Divider()
+                        .padding(.leading, 40)
+                }
+            }
+        }
+        .background(.ultraThinMaterial)
+        .clipShape(.rect(cornerRadius: 8))
+        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+    }
+
+    private func suggestionRow(_ suggestion: SearchSuggestion, index: Int) -> some View {
+        Button {
+            viewModel.selectSuggestion(suggestion)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+
+                Text(suggestion.query)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "arrow.up.left")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(index == selectedSuggestionIndex ? Color.accentColor.opacity(0.15) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private var filterChips: some View {
@@ -145,7 +237,7 @@ struct SearchView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.tertiary)
 
-            Text("Search for your favorite music")
+            Text(viewModel.query.isEmpty ? "Search for your favorite music" : "Press Enter to search")
                 .font(.title3)
                 .foregroundStyle(.secondary)
 

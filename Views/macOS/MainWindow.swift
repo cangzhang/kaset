@@ -80,8 +80,8 @@ struct MainWindow: View {
         .sheet(isPresented: $showLoginSheet) {
             LoginSheet()
         }
-        .onChange(of: authService.state) { _, newState in
-            handleAuthStateChange(newState)
+        .onChange(of: authService.state) { oldState, newState in
+            handleAuthStateChange(oldState: oldState, newState: newState)
         }
         .onChange(of: authService.needsReauth) { _, needsReauth in
             if needsReauth {
@@ -193,22 +193,18 @@ struct MainWindow: View {
         ytMusicClient = client
 
         // Create view models once and cache them
-        let homeVM = HomeViewModel(client: client)
-        let exploreVM = ExploreViewModel(client: client)
-        homeViewModel = homeVM
-        exploreViewModel = exploreVM
+        homeViewModel = HomeViewModel(client: client)
+        exploreViewModel = ExploreViewModel(client: client)
         searchViewModel = SearchViewModel(client: client)
         likedMusicViewModel = LikedMusicViewModel(client: client)
         libraryViewModel = LibraryViewModel(client: client)
 
-        // Start loading home content immediately (don't wait for view to appear)
-        Task {
-            await homeVM.load()
-        }
+        // Don't start loading here - let each view's onAppear handle it
+        // This avoids race conditions after login where cookies may not be fully ready
     }
 
-    private func handleAuthStateChange(_ state: AuthService.State) {
-        switch state {
+    private func handleAuthStateChange(oldState: AuthService.State, newState: AuthService.State) {
+        switch newState {
         case .initializing:
             // Still checking login status, do nothing
             break
@@ -219,6 +215,16 @@ struct MainWindow: View {
             showLoginSheet = true
         case .loggedIn:
             showLoginSheet = false
+            // If we just completed login (transitioning from loggingIn), refresh content
+            // This handles the case where cookies weren't ready during initial load
+            if case .loggingIn = oldState {
+                Task {
+                    // Brief delay to ensure cookies are fully propagated in WebKit
+                    try? await Task.sleep(for: .milliseconds(500))
+                    await homeViewModel?.refresh()
+                    await exploreViewModel?.refresh()
+                }
+            }
         }
     }
 }

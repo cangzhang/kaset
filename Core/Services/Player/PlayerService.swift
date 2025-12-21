@@ -93,7 +93,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     // MARK: - Private Properties
 
     private let logger = DiagnosticsLogger.player
-    private var ytMusicClient: YTMusicClient?
+    private var ytMusicClient: (any YTMusicClientProtocol)?
 
     // MARK: - Initialization
 
@@ -102,7 +102,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     }
 
     /// Sets the YTMusicClient for API calls (dependency injection).
-    func setYTMusicClient(_ client: YTMusicClient) {
+    func setYTMusicClient(_ client: any YTMusicClientProtocol) {
         ytMusicClient = client
     }
 

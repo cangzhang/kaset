@@ -1,5 +1,36 @@
 import Foundation
 
+// MARK: - WebKitManagerProtocol
+
+/// Protocol defining the interface for WebKit cookie and data management.
+/// Enables dependency injection and mocking for tests.
+@MainActor
+protocol WebKitManagerProtocol: AnyObject, Sendable {
+    /// Retrieves all cookies from the HTTP cookie store.
+    func getAllCookies() async -> [HTTPCookie]
+
+    /// Gets cookies for a specific domain.
+    func getCookies(for domain: String) async -> [HTTPCookie]
+
+    /// Builds a Cookie header string for the given domain.
+    func cookieHeader(for domain: String) async -> String?
+
+    /// Retrieves the SAPISID cookie value used for authentication.
+    func getSAPISID() async -> String?
+
+    /// Checks if the required authentication cookies exist.
+    func hasAuthCookies() async -> Bool
+
+    /// Clears all website data (cookies, cache, etc.).
+    func clearAllData() async
+
+    /// Forces an immediate backup of all YouTube/Google cookies to Keychain.
+    func forceBackupCookies() async
+
+    /// Logs all authentication-related cookies for debugging.
+    func logAuthCookies() async
+}
+
 // MARK: - YTMusicClientProtocol
 
 /// Protocol defining the interface for YouTube Music API operations.
@@ -26,6 +57,9 @@ protocol YTMusicClientProtocol: Sendable {
 
     /// Searches for content.
     func search(query: String) async throws -> SearchResponse
+
+    /// Fetches search suggestions for autocomplete.
+    func getSearchSuggestions(query: String) async throws -> [SearchSuggestion]
 
     /// Fetches the user's library playlists.
     func getLibraryPlaylists() async throws -> [Playlist]
@@ -62,6 +96,9 @@ protocol YTMusicClientProtocol: Sendable {
 
     /// Fetches lyrics for a song.
     func getLyrics(videoId: String) async throws -> Lyrics
+
+    /// Fetches song metadata by video ID.
+    func getSong(videoId: String) async throws -> Song
 }
 
 // MARK: - AuthServiceProtocol

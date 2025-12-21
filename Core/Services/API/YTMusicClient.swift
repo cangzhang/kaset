@@ -161,6 +161,25 @@ final class YTMusicClient: YTMusicClientProtocol {
         return response
     }
 
+    /// Fetches search suggestions for autocomplete.
+    func getSearchSuggestions(query: String) async throws -> [SearchSuggestion] {
+        guard !query.isEmpty else {
+            return []
+        }
+
+        logger.debug("Fetching search suggestions for: \(query)")
+
+        let body: [String: Any] = [
+            "input": query,
+        ]
+
+        // No caching for suggestions - they're ephemeral
+        let data = try await request("music/get_search_suggestions", body: body)
+        let suggestions = SearchSuggestionsParser.parse(data)
+        logger.debug("Found \(suggestions.count) suggestions")
+        return suggestions
+    }
+
     /// Fetches the user's library playlists.
     func getLibraryPlaylists() async throws -> [Playlist] {
         logger.info("Fetching library playlists")
@@ -716,11 +735,18 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Builds authentication headers for API requests.
     private func buildAuthHeaders() async throws -> [String: String] {
+        // Log available cookies for debugging auth issues
+        let allCookies = await webKitManager.getAllCookies()
+        let youtubeCookies = await webKitManager.getCookies(for: "youtube.com")
+        logger.debug("Building auth headers - total cookies: \(allCookies.count), youtube.com cookies: \(youtubeCookies.count)")
+
         guard let cookieHeader = await webKitManager.cookieHeader(for: "youtube.com") else {
+            logger.error("No cookies found for youtube.com domain")
             throw YTMusicError.notAuthenticated
         }
 
         guard let sapisid = await webKitManager.getSAPISID() else {
+            logger.error("SAPISID cookie not found or expired")
             throw YTMusicError.authExpired
         }
 

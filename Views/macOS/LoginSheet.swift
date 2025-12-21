@@ -89,6 +89,10 @@ struct LoginSheet: View {
             // This ensures persistence across app restarts even if WebKit loses data
             await webKitManager.forceBackupCookies()
 
+            // Wait a moment longer to ensure all cookies are fully propagated
+            // This prevents race conditions where API calls happen before cookies are ready
+            try? await Task.sleep(for: .milliseconds(200))
+
             authService.completeLogin(sapisid: sapisid)
             pollTask?.cancel()
             dismiss()
