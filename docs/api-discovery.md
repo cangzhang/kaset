@@ -677,19 +677,30 @@ The following endpoints were tested without authentication on 2024-12-21:
 | `FEmusic_new_releases` | HTTP 200 | Full response |
 | `FEmusic_podcasts` | HTTP 200 | Full response |
 | `FEmusic_library_landing` | HTTP 200 | Returns login prompt (no content) |
+| `FEmusic_library_corpus_artists` | HTTP 200 | Returns login prompt (no content) |
 | `player` | HTTP 200 | Full metadata + streaming info |
 | `music/get_queue` | HTTP 200 | Full queue data |
 | `search` | HTTP 200 | Full results |
 
-### 🔐 Requires Authentication
+### ⚠️ Works with Session Cookies (from visiting music.youtube.com)
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
-| `FEmusic_history` | HTTP 401 | Needs auth |
-| `FEmusic_library_albums` | HTTP 400 | Needs auth + params |
-| `FEmusic_library_artists` | HTTP 400 | Needs auth + params |
-| `FEmusic_library_songs` | HTTP 400 | Needs auth + params |
+| `FEmusic_liked_playlists` | HTTP 200 | Works with session cookies |
+| `FEmusic_liked_videos` | HTTP 200 | Works with session cookies |
+| `FEmusic_history` | HTTP 200 | Returns login prompt without full auth |
+
+### 🔐 Requires Full Authentication (SAPISIDHASH)
+
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `FEmusic_history` | HTTP 200* | Returns content with full auth, login prompt without |
+| `FEmusic_library_albums` | HTTP 400 | Needs auth + specific `params` value |
+| `FEmusic_library_artists` | HTTP 400 | Needs auth + specific `params` value |
+| `FEmusic_library_songs` | HTTP 400 | Needs auth + specific `params` value |
 | `FEmusic_recently_played` | HTTP 400 | Needs auth |
-| `playlist/get_add_to_playlist` | HTTP 401 | Needs auth |
-| `playlist/create` | HTTP 401 | Needs auth |
-| `browse/edit_playlist` | HTTP 401 | Needs auth |
+| `playlist/get_add_to_playlist` | HTTP 401 | Needs full auth |
+| `playlist/create` | HTTP 401 | Needs full auth |
+| `browse/edit_playlist` | HTTP 401 | Needs full auth |
+
+> **Note on Library Albums/Artists/Songs**: These endpoints return HTTP 400 even with session cookies. They require both full SAPISIDHASH authentication AND a specific `params` value (protobuf-encoded sorting options). The exact params need to be captured from the web client's network requests.

@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - API Explorer Tool
+// MARK: - APIExplorer
 
 /// A development utility for exploring and documenting YouTube Music API endpoints.
 ///
@@ -60,15 +60,53 @@ final class APIExplorer {
         /// Whether authentication appears to be required
         let requiresAuth: Bool
 
+        /// The params value used (if any)
+        let params: String?
+
+        /// Raw response data for detailed inspection
+        let rawResponse: [String: Any]?
+
         /// A human-readable summary of the exploration result
         var summary: String {
             if !self.success {
                 let authNote = self.requiresAuth ? " (requires authentication)" : ""
-                return "❌ \(self.browseId): \(self.errorMessage ?? "Unknown error")\(authNote)"
+                let paramsNote = self.params != nil ? " [params: \(self.params!)]" : ""
+                return "❌ \(self.browseId): \(self.errorMessage ?? "Unknown error")\(authNote)\(paramsNote)"
             }
             let sectionInfo = self.sectionCount > 0 ? ", \(self.sectionCount) sections" : ""
             let typesInfo = self.sectionTypes.isEmpty ? "" : " [\(self.sectionTypes.joined(separator: ", "))]"
-            return "✅ \(self.browseId): \(self.responseKeys.count) keys\(sectionInfo)\(typesInfo)"
+            let paramsNote = self.params != nil ? " [params: \(self.params!)]" : ""
+            return "✅ \(self.browseId): \(self.responseKeys.count) keys\(sectionInfo)\(typesInfo)\(paramsNote)"
+        }
+    }
+
+    /// Result of exploring a browse endpoint with params variations.
+    struct ParamsExplorationResult: Sendable {
+        /// A single param test result
+        struct ParamTestResult: Sendable {
+            let params: String
+            let paramsDescription: String
+            let statusCode: Int?
+            let success: Bool
+            let errorMessage: String?
+        }
+
+        let browseId: String
+        let results: [ParamTestResult]
+
+        var summary: String {
+            var lines = ["📊 Params exploration for \(browseId):"]
+            for result in self.results {
+                let status = result.success ? "✅" : "❌"
+                let code = result.statusCode.map { "HTTP \($0)" } ?? "Error"
+                let error = result.errorMessage ?? ""
+                lines.append("  \(status) \(result.paramsDescription): \(code) \(error)")
+            }
+            return lines.joined(separator: "\n")
+        }
+
+        var workingParams: [String] {
+            self.results.filter(\.success).map(\.params)
         }
     }
 
@@ -95,6 +133,9 @@ final class APIExplorer {
         /// Approximate response size in bytes
         let responseSize: Int
 
+        /// Raw response data for detailed inspection
+        let rawResponse: [String: Any]?
+
         /// A human-readable summary
         var summary: String {
             if !self.success {
@@ -106,338 +147,50 @@ final class APIExplorer {
         }
     }
 
-    /// Configuration for an endpoint to explore
-    struct EndpointConfig: Sendable {
-        let id: String
-        let name: String
-        let description: String
-        let requiresAuth: Bool
-        let isImplemented: Bool
-        let notes: String?
+    /// Result of exploring authentication status.
+    struct AuthStatus: Sendable {
+        let isAuthenticated: Bool
+        let hasSAPISID: Bool
+        let hasCookies: Bool
+        let cookieCount: Int
+        let authTestEndpoint: String?
+        let authTestResult: Bool?
 
-        init(
-            id: String,
-            name: String,
-            description: String,
-            requiresAuth: Bool = false,
-            isImplemented: Bool = false,
-            notes: String? = nil
-        ) {
-            self.id = id
-            self.name = name
-            self.description = description
-            self.requiresAuth = requiresAuth
-            self.isImplemented = isImplemented
-            self.notes = notes
+        var summary: String {
+            var lines = ["🔐 Authentication Status:"]
+            lines.append("  Cookies available: \(self.hasCookies) (\(self.cookieCount) cookies)")
+            lines.append("  SAPISID present: \(self.hasSAPISID)")
+            lines.append("  Authenticated: \(self.isAuthenticated)")
+            if let endpoint = authTestEndpoint, let result = authTestResult {
+                let icon = result ? "✅" : "❌"
+                lines.append("  Auth test (\(endpoint)): \(icon)")
+            }
+            return lines.joined(separator: "\n")
         }
     }
 
-    // MARK: - Known Endpoints Registry
+    /// Detailed response structure for debugging.
+    struct ResponseStructure: Sendable {
+        let endpoint: String
+        let keys: [String]
+        let nestedStructure: [String: [String]]
+        let containsLoginPrompt: Bool
+        let hasUserData: Bool
 
-    /// All known browse endpoints for YouTube Music.
-    /// This registry serves as the source of truth for available endpoints.
-    static let browseEndpoints: [EndpointConfig] = [
-        // MARK: - Implemented Endpoints
-
-        EndpointConfig(
-            id: "FEmusic_home",
-            name: "Home",
-            description: "Main home feed with personalized recommendations, mixes, and quick picks",
-            requiresAuth: false,
-            isImplemented: true,
-            notes: "Supports continuation for progressive loading"
-        ),
-        EndpointConfig(
-            id: "FEmusic_explore",
-            name: "Explore",
-            description: "Explore page with new releases, charts, and moods shortcuts",
-            requiresAuth: false,
-            isImplemented: true,
-            notes: "Supports continuation for progressive loading"
-        ),
-        EndpointConfig(
-            id: "FEmusic_liked_playlists",
-            name: "Library Playlists",
-            description: "User's saved/created playlists in their library",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "FEmusic_liked_videos",
-            name: "Liked Songs",
-            description: "Songs the user has liked (thumbs up)",
-            requiresAuth: true,
-            isImplemented: true,
-            notes: "Returns as playlist detail format"
-        ),
-
-        // MARK: - Available (Not Implemented)
-
-        EndpointConfig(
-            id: "FEmusic_charts",
-            name: "Charts",
-            description: "Top songs, albums, trending charts by genre and country",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "High priority - popular feature"
-        ),
-        EndpointConfig(
-            id: "FEmusic_moods_and_genres",
-            name: "Moods & Genres",
-            description: "Browse music by mood (Chill, Workout) or genre (Pop, Rock)",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "Returns grid sections for moods and genres"
-        ),
-        EndpointConfig(
-            id: "FEmusic_new_releases",
-            name: "New Releases",
-            description: "Recently released albums, singles, and music videos",
-            requiresAuth: false,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "FEmusic_podcasts",
-            name: "Podcasts",
-            description: "Podcast discovery and browsing",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "Lower priority - not core music feature"
-        ),
-        EndpointConfig(
-            id: "FEmusic_history",
-            name: "History",
-            description: "User's listening history / recently played",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "High priority - users expect this feature"
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_landing",
-            name: "Library Landing",
-            description: "Library overview with recent activity",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Returns HTTP 200 but only login prompt without auth"
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_albums",
-            name: "Library Albums",
-            description: "Albums saved to user's library",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_artists",
-            name: "Library Artists",
-            description: "Artists the user follows/subscribes to",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_songs",
-            name: "Library Songs",
-            description: "All songs in user's library",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
-        ),
-        EndpointConfig(
-            id: "FEmusic_recently_played",
-            name: "Recently Played",
-            description: "Quick access to recently played content",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Returns HTTP 400 without auth. May overlap with FEmusic_history."
-        ),
-        EndpointConfig(
-            id: "FEmusic_offline",
-            name: "Downloads",
-            description: "Downloaded content for offline playback",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Desktop web may not support this"
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_privately_owned_landing",
-            name: "Uploads Landing",
-            description: "User-uploaded music landing page",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_privately_owned_tracks",
-            name: "Uploaded Tracks",
-            description: "User-uploaded songs",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_privately_owned_albums",
-            name: "Uploaded Albums",
-            description: "User-uploaded albums",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "FEmusic_library_privately_owned_artists",
-            name: "Uploaded Artists",
-            description: "Artists from user-uploaded content",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-    ]
-
-    /// All known action endpoints for YouTube Music.
-    static let actionEndpoints: [EndpointConfig] = [
-        // MARK: - Implemented
-
-        EndpointConfig(
-            id: "search",
-            name: "Search",
-            description: "Search for songs, albums, artists, playlists",
-            requiresAuth: false,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "music/get_search_suggestions",
-            name: "Search Suggestions",
-            description: "Autocomplete suggestions for search",
-            requiresAuth: false,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "next",
-            name: "Next / Now Playing",
-            description: "Get track info, lyrics browse ID, related tracks, autoplay queue",
-            requiresAuth: false,
-            isImplemented: true,
-            notes: "Used for lyrics, song metadata, and radio queue"
-        ),
-        EndpointConfig(
-            id: "like/like",
-            name: "Like",
-            description: "Like a song, album, playlist, or artist",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "like/dislike",
-            name: "Dislike",
-            description: "Dislike a song",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "like/removelike",
-            name: "Remove Like",
-            description: "Remove like/dislike rating from content",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "feedback",
-            name: "Feedback",
-            description: "Library add/remove using feedback tokens",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "subscription/subscribe",
-            name: "Subscribe",
-            description: "Subscribe to an artist channel",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-        EndpointConfig(
-            id: "subscription/unsubscribe",
-            name: "Unsubscribe",
-            description: "Unsubscribe from an artist channel",
-            requiresAuth: true,
-            isImplemented: true
-        ),
-
-        // MARK: - Available (Not Implemented)
-
-        EndpointConfig(
-            id: "player",
-            name: "Player",
-            description: "Get video details, streaming formats, captions",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "Verified: Returns 17+ keys including videoDetails, streamingData (26 formats), playabilityStatus"
-        ),
-        EndpointConfig(
-            id: "music/get_queue",
-            name: "Get Queue",
-            description: "Get queue data for video IDs",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "Verified: Returns queueDatas with playlistPanelVideoRenderer per video"
-        ),
-        EndpointConfig(
-            id: "playlist/get_add_to_playlist",
-            name: "Get Add to Playlist",
-            description: "Get user's playlists for 'Add to Playlist' menu",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Verified: Returns HTTP 401 without auth"
-        ),
-        EndpointConfig(
-            id: "browse/edit_playlist",
-            name: "Edit Playlist",
-            description: "Add/remove tracks from a playlist",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Verified: Returns HTTP 401 without auth"
-        ),
-        EndpointConfig(
-            id: "playlist/create",
-            name: "Create Playlist",
-            description: "Create a new playlist",
-            requiresAuth: true,
-            isImplemented: false,
-            notes: "Verified: Returns HTTP 401 without auth"
-        ),
-        EndpointConfig(
-            id: "playlist/delete",
-            name: "Delete Playlist",
-            description: "Delete a playlist",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "guide",
-            name: "Guide",
-            description: "Sidebar navigation structure",
-            requiresAuth: false,
-            isImplemented: false,
-            notes: "Low priority - we build our own sidebar"
-        ),
-        EndpointConfig(
-            id: "account/account_menu",
-            name: "Account Menu",
-            description: "Account settings and profile info",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "notification/get_notification_menu",
-            name: "Notifications",
-            description: "User notifications",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-        EndpointConfig(
-            id: "stats/watchtime",
-            name: "Watch Time",
-            description: "Listening statistics",
-            requiresAuth: true,
-            isImplemented: false
-        ),
-    ]
+        var summary: String {
+            var lines = ["📋 Response structure for \(endpoint):"]
+            lines.append("  Top-level keys: \(self.keys.joined(separator: ", "))")
+            lines.append("  Contains login prompt: \(self.containsLoginPrompt)")
+            lines.append("  Has user data: \(self.hasUserData)")
+            if !self.nestedStructure.isEmpty {
+                lines.append("  Nested structure:")
+                for (key, subkeys) in self.nestedStructure.sorted(by: { $0.key < $1.key }) {
+                    lines.append("    \(key): \(subkeys.joined(separator: ", "))")
+                }
+            }
+            return lines.joined(separator: "\n")
+        }
+    }
 
     // MARK: - Properties
 
@@ -464,12 +217,22 @@ final class APIExplorer {
     // MARK: - Exploration Methods
 
     /// Explores a browse endpoint and returns structured results.
-    /// - Parameter browseId: The browse ID to explore (e.g., "FEmusic_charts")
+    /// - Parameters:
+    ///   - browseId: The browse ID to explore (e.g., "FEmusic_charts")
+    ///   - params: Optional params value for library endpoints
+    ///   - includeRawResponse: Whether to include the raw response data
     /// - Returns: A BrowseResult with information about the endpoint
-    func exploreBrowseEndpoint(_ browseId: String) async -> BrowseResult {
+    func exploreBrowseEndpoint(
+        _ browseId: String,
+        params: String? = nil,
+        includeRawResponse: Bool = false
+    ) async -> BrowseResult {
         self.logger.info("[APIExplorer] Exploring browse endpoint: \(browseId)")
 
-        let body: [String: Any] = ["browseId": browseId]
+        var body: [String: Any] = ["browseId": browseId]
+        if let params {
+            body["params"] = params
+        }
 
         do {
             let (data, statusCode) = try await makeRequest("browse", body: body)
@@ -485,7 +248,9 @@ final class APIExplorer {
                 responseKeys: responseKeys,
                 sectionCount: sectionCount,
                 sectionTypes: sectionTypes,
-                requiresAuth: false
+                requiresAuth: false,
+                params: params,
+                rawResponse: includeRawResponse ? data : nil
             )
         } catch let error as ExplorerError {
             return BrowseResult(
@@ -496,7 +261,9 @@ final class APIExplorer {
                 responseKeys: [],
                 sectionCount: 0,
                 sectionTypes: [],
-                requiresAuth: error.statusCode == 401 || error.statusCode == 403
+                requiresAuth: error.statusCode == 401 || error.statusCode == 403,
+                params: params,
+                rawResponse: nil
             )
         } catch {
             return BrowseResult(
@@ -507,17 +274,161 @@ final class APIExplorer {
                 responseKeys: [],
                 sectionCount: 0,
                 sectionTypes: [],
-                requiresAuth: false
+                requiresAuth: false,
+                params: params,
+                rawResponse: nil
             )
         }
+    }
+
+    /// Explores a browse endpoint with all known params variations.
+    /// Use this to discover which params work for library endpoints.
+    /// - Parameter browseId: The browse ID to test (e.g., "FEmusic_library_albums")
+    /// - Returns: A ParamsExplorationResult showing which params work
+    func exploreWithAllParams(_ browseId: String) async -> ParamsExplorationResult {
+        self.logger.info("[APIExplorer] Testing all params for: \(browseId)")
+
+        var results: [ParamsExplorationResult.ParamTestResult] = []
+
+        // First try without params
+        let noParamsResult = await exploreBrowseEndpoint(browseId, params: nil)
+        results.append(ParamsExplorationResult.ParamTestResult(
+            params: "",
+            paramsDescription: "No params",
+            statusCode: noParamsResult.statusCode,
+            success: noParamsResult.success,
+            errorMessage: noParamsResult.errorMessage
+        ))
+
+        // Try all known params variations
+        for param in LibraryParams.allCases {
+            let result = await exploreBrowseEndpoint(browseId, params: param.rawValue)
+            results.append(ParamsExplorationResult.ParamTestResult(
+                params: param.rawValue,
+                paramsDescription: param.description,
+                statusCode: result.statusCode,
+                success: result.success,
+                errorMessage: result.errorMessage
+            ))
+        }
+
+        return ParamsExplorationResult(browseId: browseId, results: results)
+    }
+
+    /// Checks current authentication status.
+    /// - Returns: AuthStatus with details about cookie and auth availability
+    func checkAuthStatus() async -> AuthStatus {
+        self.logger.info("[APIExplorer] Checking authentication status")
+
+        let hasCookies = await webKitManager.cookieHeader(for: "youtube.com") != nil
+        let hasSAPISID = await webKitManager.getSAPISID() != nil
+
+        // Count cookies
+        var cookieCount = 0
+        if let cookieHeader = await webKitManager.cookieHeader(for: "youtube.com") {
+            cookieCount = cookieHeader.components(separatedBy: ";").count
+        }
+
+        // Test auth with a known auth-required endpoint
+        let testResult = await exploreBrowseEndpoint("FEmusic_liked_playlists")
+        let isAuthenticated = testResult.success && testResult.statusCode == 200
+
+        return AuthStatus(
+            isAuthenticated: isAuthenticated,
+            hasSAPISID: hasSAPISID,
+            hasCookies: hasCookies,
+            cookieCount: cookieCount,
+            authTestEndpoint: "FEmusic_liked_playlists",
+            authTestResult: isAuthenticated
+        )
+    }
+
+    /// Analyzes the response structure of an endpoint in detail.
+    /// - Parameters:
+    ///   - browseId: The browse ID to analyze
+    ///   - params: Optional params value
+    /// - Returns: ResponseStructure with detailed analysis
+    func analyzeResponseStructure(_ browseId: String, params: String? = nil) async -> ResponseStructure {
+        self.logger.info("[APIExplorer] Analyzing response structure for: \(browseId)")
+
+        let result = await exploreBrowseEndpoint(browseId, params: params, includeRawResponse: true)
+
+        guard let response = result.rawResponse else {
+            return ResponseStructure(
+                endpoint: browseId,
+                keys: result.responseKeys,
+                nestedStructure: [:],
+                containsLoginPrompt: false,
+                hasUserData: false
+            )
+        }
+
+        // Check for login prompt indicators
+        let responseString = String(describing: response)
+        let containsLoginPrompt = responseString.contains("Sign in") ||
+            responseString.contains("signInEndpoint") ||
+            responseString.contains("loginRequired")
+
+        // Check for user data indicators
+        let hasUserData = responseString.contains("playlistId") ||
+            responseString.contains("videoId") ||
+            responseString.contains("musicResponsiveListItemRenderer")
+
+        // Build nested structure (one level deep)
+        var nestedStructure: [String: [String]] = [:]
+        for (key, value) in response {
+            if let dict = value as? [String: Any] {
+                nestedStructure[key] = Array(dict.keys).sorted()
+            } else if let array = value as? [[String: Any]], let first = array.first {
+                nestedStructure["\(key)[0]"] = Array(first.keys).sorted()
+            }
+        }
+
+        return ResponseStructure(
+            endpoint: browseId,
+            keys: result.responseKeys,
+            nestedStructure: nestedStructure,
+            containsLoginPrompt: containsLoginPrompt,
+            hasUserData: hasUserData
+        )
+    }
+
+    /// Explores all library endpoints with various params to discover working combinations.
+    /// - Returns: Dictionary of browseId to working params
+    func discoverLibraryParams() async -> [String: [String]] {
+        self.logger.info("[APIExplorer] Discovering library params")
+
+        let libraryEndpoints = [
+            "FEmusic_library_albums",
+            "FEmusic_library_artists",
+            "FEmusic_library_songs",
+            "FEmusic_history",
+            "FEmusic_recently_played",
+            "FEmusic_library_landing",
+        ]
+
+        var workingParams: [String: [String]] = [:]
+
+        for endpoint in libraryEndpoints {
+            let result = await exploreWithAllParams(endpoint)
+            workingParams[endpoint] = result.workingParams
+            self.logger.info("[APIExplorer] \(result.summary)")
+        }
+
+        return workingParams
     }
 
     /// Explores an action endpoint and returns structured results.
     /// - Parameters:
     ///   - endpoint: The endpoint path (e.g., "player", "music/get_queue")
     ///   - body: The request body parameters
+    ///   - includeRawResponse: Whether to include the raw response data
     /// - Returns: An ActionResult with information about the endpoint
-    func exploreActionEndpoint(_ endpoint: String, body: [String: Any]) async -> ActionResult {
+    func exploreActionEndpoint(
+        _ endpoint: String,
+        body: [String: Any],
+        includeRawResponse: Bool = false
+    ) async -> ActionResult {
         self.logger.info("[APIExplorer] Exploring action endpoint: \(endpoint)")
 
         do {
@@ -535,7 +446,8 @@ final class APIExplorer {
                 errorMessage: nil,
                 responseKeys: responseKeys,
                 requiresAuth: false,
-                responseSize: responseSize
+                responseSize: responseSize,
+                rawResponse: includeRawResponse ? data : nil
             )
         } catch let error as ExplorerError {
             return ActionResult(
@@ -545,7 +457,8 @@ final class APIExplorer {
                 errorMessage: error.message,
                 responseKeys: [],
                 requiresAuth: error.statusCode == 401 || error.statusCode == 403,
-                responseSize: 0
+                responseSize: 0,
+                rawResponse: nil
             )
         } catch {
             return ActionResult(
@@ -555,7 +468,8 @@ final class APIExplorer {
                 errorMessage: error.localizedDescription,
                 responseKeys: [],
                 requiresAuth: false,
-                responseSize: 0
+                responseSize: 0,
+                rawResponse: nil
             )
         }
     }
@@ -575,6 +489,102 @@ final class APIExplorer {
         return results
     }
 
+    /// Runs a comprehensive exploration of all endpoints and generates a report.
+    /// This is useful for getting a complete picture of the API surface.
+    /// - Returns: A comprehensive markdown report
+    func runFullExploration() async -> String {
+        self.logger.info("[APIExplorer] Running full API exploration")
+
+        var report = """
+        # Full API Exploration Report
+
+        Generated: \(ISO8601DateFormatter().string(from: Date()))
+
+        ## Authentication Status
+
+        """
+
+        // Check auth first
+        let authStatus = await checkAuthStatus()
+        report += authStatus.summary + "\n\n"
+
+        report += "## Browse Endpoints\n\n"
+
+        // Test all browse endpoints
+        for endpoint in Self.browseEndpoints {
+            let result = await exploreBrowseEndpoint(endpoint.id)
+            report += "### \(endpoint.name) (`\(endpoint.id)`)\n\n"
+            report += "- **Description**: \(endpoint.description)\n"
+            report += "- **Requires Auth**: \(endpoint.requiresAuth ? "Yes" : "No")\n"
+            report += "- **Implemented**: \(endpoint.isImplemented ? "Yes" : "No")\n"
+            report += "- **Status**: \(result.summary)\n"
+            if let notes = endpoint.notes {
+                report += "- **Notes**: \(notes)\n"
+            }
+
+            // If it failed and needs params, try params exploration
+            if !result.success, endpoint.id.contains("library_") {
+                report += "- **Params exploration**:\n"
+                for param in [LibraryParams.recentlyAdded, .alphabeticalAZ, .defaultSort] {
+                    let paramResult = await exploreBrowseEndpoint(endpoint.id, params: param.rawValue)
+                    let status = paramResult.success ? "✅" : "❌ HTTP \(paramResult.statusCode ?? 0)"
+                    report += "  - \(param.description): \(status)\n"
+                }
+            }
+            report += "\n"
+        }
+
+        report += "## Action Endpoints\n\n"
+
+        // Test key action endpoints
+        let testActions: [(endpoint: String, body: [String: Any])] = [
+            ("player", ["videoId": "dQw4w9WgXcQ"]),
+            ("music/get_queue", ["videoIds": ["dQw4w9WgXcQ"]]),
+            ("playlist/get_add_to_playlist", ["videoId": "dQw4w9WgXcQ"]),
+        ]
+
+        for (endpointId, body) in testActions {
+            if let endpoint = Self.actionEndpoints.first(where: { $0.id == endpointId }) {
+                let result = await exploreActionEndpoint(endpointId, body: body)
+                report += "### \(endpoint.name) (`\(endpointId)`)\n\n"
+                report += "- **Description**: \(endpoint.description)\n"
+                report += "- **Requires Auth**: \(endpoint.requiresAuth ? "Yes" : "No")\n"
+                report += "- **Implemented**: \(endpoint.isImplemented ? "Yes" : "No")\n"
+                report += "- **Status**: \(result.summary)\n"
+                if let notes = endpoint.notes {
+                    report += "- **Notes**: \(notes)\n"
+                }
+                report += "\n"
+            }
+        }
+
+        report += """
+
+        ## Library Params Discovery
+
+        Testing which params values work for library endpoints:
+
+        """
+
+        let libraryParams = await discoverLibraryParams()
+        for (endpoint, working) in libraryParams.sorted(by: { $0.key < $1.key }) {
+            if working.isEmpty {
+                report += "- **\(endpoint)**: No working params found\n"
+            } else {
+                report += "- **\(endpoint)**: \(working.count) working params\n"
+                for param in working {
+                    if let libParam = LibraryParams(rawValue: param) {
+                        report += "  - `\(param)` (\(libParam.description))\n"
+                    } else {
+                        report += "  - `\(param)`\n"
+                    }
+                }
+            }
+        }
+
+        return report
+    }
+
     /// Generates a markdown report of all endpoints.
     /// - Returns: A formatted markdown string documenting all endpoints
     func generateEndpointReport() async -> String {
@@ -583,6 +593,14 @@ final class APIExplorer {
 
         Generated: \(ISO8601DateFormatter().string(from: Date()))
 
+        ## Authentication Status
+
+        """
+
+        let authStatus = await checkAuthStatus()
+        report += authStatus.summary + "\n\n"
+
+        report += """
         ## Browse Endpoints
 
         | ID | Name | Auth | Implemented | Status |
@@ -631,6 +649,84 @@ final class APIExplorer {
         """
 
         return report
+    }
+
+    /// Tests a custom params value for a library endpoint.
+    /// Use this when you've captured a new params value from the web client.
+    /// - Parameters:
+    ///   - browseId: The browse ID to test
+    ///   - params: The base64-encoded params value
+    /// - Returns: BrowseResult with detailed information
+    func testCustomParams(_ browseId: String, params: String) async -> BrowseResult {
+        self.logger.info("[APIExplorer] Testing custom params for \(browseId): \(params)")
+        return await self.exploreBrowseEndpoint(browseId, params: params, includeRawResponse: true)
+    }
+
+    /// Decodes a base64 params value to show its raw bytes (for debugging).
+    /// - Parameter params: The base64-encoded params value
+    /// - Returns: A hex dump of the decoded bytes
+    func decodeParams(_ params: String) -> String {
+        guard let data = Data(base64Encoded: params) else {
+            return "Invalid base64"
+        }
+        let bytes = data.map { String(format: "%02x", $0) }
+        return "Decoded \(data.count) bytes: \(bytes.joined(separator: " "))"
+    }
+
+    /// Prints usage instructions for the API Explorer.
+    static var usageInstructions: String {
+        """
+        # APIExplorer Usage Guide
+
+        ## Quick Start
+
+        ```swift
+        let explorer = APIExplorer()
+
+        // Check auth status
+        let auth = await explorer.checkAuthStatus()
+        DiagnosticsLogger.api.info("\\(auth.summary)")
+
+        // Explore a specific endpoint
+        let result = await explorer.exploreBrowseEndpoint("FEmusic_charts")
+        DiagnosticsLogger.api.info("\\(result.summary)")
+
+        // Explore with params (for library endpoints)
+        let libResult = await explorer.exploreBrowseEndpoint(
+            "FEmusic_library_albums",
+            params: LibraryParams.recentlyAdded.rawValue
+        )
+        DiagnosticsLogger.api.info("\\(libResult.summary)")
+
+        // Discover which params work
+        let paramsResult = await explorer.exploreWithAllParams("FEmusic_library_albums")
+        DiagnosticsLogger.api.info("\\(paramsResult.summary)")
+
+        // Run full exploration
+        let report = await explorer.runFullExploration()
+        DiagnosticsLogger.api.info("\\(report)")
+        ```
+
+        ## Key Methods
+
+        - `checkAuthStatus()` - Verify cookies and SAPISIDHASH are available
+        - `exploreBrowseEndpoint(_:params:)` - Test a browse endpoint
+        - `exploreWithAllParams(_:)` - Try all known params variations
+        - `discoverLibraryParams()` - Find working params for library endpoints
+        - `analyzeResponseStructure(_:)` - Get detailed response analysis
+        - `runFullExploration()` - Generate comprehensive report
+        - `testCustomParams(_:params:)` - Test a captured params value
+
+        ## Capturing Params from Web Client
+
+        1. Open music.youtube.com in Chrome
+        2. Open DevTools → Network tab
+        3. Navigate to Library → Albums (or Songs, Artists)
+        4. Find the `browse` request in Network tab
+        5. Look at the request payload for `params` field
+        6. Test with: `await explorer.testCustomParams("FEmusic_library_albums", params: "...")`
+
+        """
     }
 
     // MARK: - Private Methods
