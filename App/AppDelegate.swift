@@ -103,7 +103,7 @@ extension AppDelegate: NSWindowDelegate {
         if UITestConfig.isUITestMode {
             return true
         }
-        
+
         // Hide the window instead of closing it
         sender.orderOut(nil)
         return false // Don't actually close

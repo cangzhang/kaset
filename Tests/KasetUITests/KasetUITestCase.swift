@@ -1,5 +1,7 @@
 import XCTest
 
+// MARK: - TestAccessibilityID
+
 /// Accessibility identifiers matching those in AccessibilityID enum.
 /// Duplicated here to avoid import issues with the app target.
 enum TestAccessibilityID {
@@ -16,6 +18,8 @@ enum TestAccessibilityID {
         static let container = "homeView"
     }
 }
+
+// MARK: - KasetUITestCase
 
 /// Base class for Kaset UI tests.
 /// Provides common setup, launch configuration, and helper methods.
@@ -214,17 +218,17 @@ class KasetUITestCase: XCTestCase {
             // Try other element types
             sidebarItem = app.cells[accessibilityID].firstMatch
         }
-        
+
         // First wait for element to exist
         let existsPredicate = NSPredicate(format: "exists == true")
         let existsExpectation = XCTNSPredicateExpectation(predicate: existsPredicate, object: sidebarItem)
         let existsResult = XCTWaiter().wait(for: [existsExpectation], timeout: 15)
-        
+
         guard existsResult == .completed else {
             XCTFail("Sidebar item '\(accessibilityID)' never appeared")
             return
         }
-        
+
         // Then wait for it to be hittable (may need time for layout)
         if waitForHittable(sidebarItem, timeout: 10) {
             sidebarItem.click()
@@ -235,17 +239,17 @@ class KasetUITestCase: XCTestCase {
     func navigateToSidebarItemByLabel(_ label: String) {
         // Wait for sidebar to be ready with extended timeout for UI test startup
         let sidebarItem = app.staticTexts[label].firstMatch
-        
+
         // First wait for element to exist
         let existsPredicate = NSPredicate(format: "exists == true")
         let existsExpectation = XCTNSPredicateExpectation(predicate: existsPredicate, object: sidebarItem)
         let existsResult = XCTWaiter().wait(for: [existsExpectation], timeout: 15)
-        
+
         guard existsResult == .completed else {
             XCTFail("Sidebar item '\(label)' never appeared")
             return
         }
-        
+
         // Then wait for it to be hittable (may need time for layout)
         if waitForHittable(sidebarItem, timeout: 10) {
             sidebarItem.click()

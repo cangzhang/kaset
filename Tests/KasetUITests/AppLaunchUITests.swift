@@ -18,11 +18,11 @@ final class AppLaunchUITests: KasetUITestCase {
         // Should show sidebar navigation - look for the sidebar container or any sidebar item
         let sidebar = app.otherElements[TestAccessibilityID.Sidebar.container].firstMatch
         let sidebarExists = sidebar.waitForExistence(timeout: 10)
-        
+
         // Also check for any sidebar item as a fallback
         let homeItem = app.buttons[TestAccessibilityID.Sidebar.homeItem].firstMatch
         let homeExists = homeItem.waitForExistence(timeout: 5)
-        
+
         XCTAssertTrue(sidebarExists || homeExists, "Sidebar should be visible")
     }
 

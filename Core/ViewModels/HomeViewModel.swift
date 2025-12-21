@@ -71,7 +71,7 @@ final class HomeViewModel {
 
             guard !Task.isCancelled else { return }
 
-            await self.loadMoreSections()
+            await loadMoreSections()
         }
     }
 

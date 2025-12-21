@@ -41,9 +41,9 @@ final class AuthService: AuthServiceProtocol {
         logger.debug("AuthService init: isUITestMode=\(isUITest), shouldSkipAuth=\(skipAuth)")
         if isUITest, skipAuth {
             logger.info("UI Test mode with SkipAuth: starting in logged-in state")
-            self.state = .loggedIn(sapisid: "mock-sapisid-for-ui-tests")
+            state = .loggedIn(sapisid: "mock-sapisid-for-ui-tests")
         } else {
-            self.state = .initializing
+            state = .initializing
         }
     }
 
