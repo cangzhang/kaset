@@ -63,6 +63,10 @@ final class PlaylistDetailViewModel {
             loadingState = .loaded
             let trackCount = detail.tracks.count
             logger.info("Playlist loaded: \(trackCount) tracks")
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
+            logger.debug("Playlist detail load cancelled")
+            loadingState = .idle
         } catch {
             let errorMessage = error.localizedDescription
             logger.error("Failed to load playlist: \(errorMessage)")

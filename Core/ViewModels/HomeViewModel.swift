@@ -51,6 +51,10 @@ final class HomeViewModel {
 
             // Start background loading of additional sections
             startBackgroundLoading()
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
+            logger.debug("Home load cancelled")
+            loadingState = .idle
         } catch {
             logger.error("Failed to load home: \(error.localizedDescription)")
             loadingState = .error(error.localizedDescription)
@@ -68,7 +72,7 @@ final class HomeViewModel {
 
             guard !Task.isCancelled else { return }
 
-            await self.loadMoreSections()
+            await loadMoreSections()
         }
     }
 

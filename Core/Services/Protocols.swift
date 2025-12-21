@@ -18,11 +18,17 @@ protocol YTMusicClientProtocol: Sendable {
     /// Fetches the user's library playlists.
     func getLibraryPlaylists() async throws -> [Playlist]
 
+    /// Fetches the user's liked songs.
+    func getLikedSongs() async throws -> [Song]
+
     /// Fetches playlist details including tracks.
     func getPlaylist(id: String) async throws -> PlaylistDetail
 
     /// Fetches artist details including their songs and albums.
     func getArtist(id: String) async throws -> ArtistDetail
+
+    /// Fetches all songs for an artist using the songs browse endpoint.
+    func getArtistSongs(browseId: String, params: String?) async throws -> [Song]
 
     /// Rates a song (like/dislike/indifferent).
     func rateSong(videoId: String, rating: LikeStatus) async throws
@@ -35,6 +41,15 @@ protocol YTMusicClientProtocol: Sendable {
 
     /// Removes a playlist from the user's library.
     func unsubscribeFromPlaylist(playlistId: String) async throws
+
+    /// Subscribes to an artist (adds to library).
+    func subscribeToArtist(channelId: String) async throws
+
+    /// Unsubscribes from an artist (removes from library).
+    func unsubscribeFromArtist(channelId: String) async throws
+
+    /// Fetches lyrics for a song.
+    func getLyrics(videoId: String) async throws -> Lyrics
 }
 
 // MARK: - AuthServiceProtocol

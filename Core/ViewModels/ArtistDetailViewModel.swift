@@ -20,8 +20,17 @@ final class ArtistDetailViewModel {
     /// The loaded artist detail.
     private(set) var artistDetail: ArtistDetail?
 
+    /// Whether a subscription operation is in progress.
+    private(set) var isSubscribing: Bool = false
+
+    /// Whether to show all songs instead of limited preview.
+    var showAllSongs: Bool = false
+
+    /// Number of songs to show in preview mode.
+    static let previewSongCount = 5
+
     private let artist: Artist
-    private let client: any YTMusicClientProtocol
+    let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
     init(artist: Artist, client: any YTMusicClientProtocol) {
@@ -52,7 +61,13 @@ final class ArtistDetailViewModel {
                     description: detail.description,
                     songs: detail.songs,
                     albums: detail.albums,
-                    thumbnailURL: detail.thumbnailURL ?? artist.thumbnailURL
+                    thumbnailURL: detail.thumbnailURL ?? artist.thumbnailURL,
+                    channelId: detail.channelId,
+                    isSubscribed: detail.isSubscribed,
+                    subscriberCount: detail.subscriberCount,
+                    hasMoreSongs: detail.hasMoreSongs,
+                    songsBrowseId: detail.songsBrowseId,
+                    songsParams: detail.songsParams
                 )
             }
 
@@ -60,6 +75,10 @@ final class ArtistDetailViewModel {
             loadingState = .loaded
             let songCount = detail.songs.count
             logger.info("Artist loaded: \(songCount) songs")
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
+            logger.debug("Artist detail load cancelled")
+            loadingState = .idle
         } catch {
             let errorMessage = error.localizedDescription
             logger.error("Failed to load artist: \(errorMessage)")
@@ -70,6 +89,51 @@ final class ArtistDetailViewModel {
     /// Refreshes the artist details.
     func refresh() async {
         artistDetail = nil
+        showAllSongs = false
         await load()
+    }
+
+    /// Toggles subscription status for the artist.
+    func toggleSubscription() async {
+        guard let detail = artistDetail,
+              let channelId = detail.channelId
+        else {
+            logger.warning("Cannot toggle subscription: missing channel ID")
+            return
+        }
+
+        isSubscribing = true
+        defer { isSubscribing = false }
+
+        do {
+            if detail.isSubscribed {
+                try await client.unsubscribeFromArtist(channelId: channelId)
+                artistDetail?.isSubscribed = false
+                logger.info("Unsubscribed from artist: \(detail.name)")
+            } else {
+                try await client.subscribeToArtist(channelId: channelId)
+                artistDetail?.isSubscribed = true
+                logger.info("Subscribed to artist: \(detail.name)")
+            }
+        } catch {
+            logger.error("Failed to toggle subscription: \(error.localizedDescription)")
+        }
+    }
+
+    /// The songs to display based on showAllSongs state.
+    var displayedSongs: [Song] {
+        guard let songs = artistDetail?.songs else { return [] }
+        if showAllSongs {
+            return songs
+        }
+        return Array(songs.prefix(Self.previewSongCount))
+    }
+
+    /// Whether there are more songs to show (either loaded or available via API).
+    var hasMoreSongs: Bool {
+        guard let detail = artistDetail else { return false }
+        // Show "See all" if there are more songs loaded than preview count,
+        // OR if the API indicates more songs are available
+        return detail.songs.count > Self.previewSongCount || detail.hasMoreSongs
     }
 }

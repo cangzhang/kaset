@@ -62,6 +62,8 @@ For detailed information, see the `docs/` folder:
 
 > 📝 **Document Architectural Decisions** — For significant design changes, create an ADR in `docs/adr/` following the format in [docs/adr/README.md](docs/adr/README.md).
 
+> ⚡ **Performance Awareness** — For non-trivial features, run performance tests and verify no anti-patterns. When adding parsers or API calls, include `measure {}` tests.
+
 ### Build & Verify
 
 After modifying code, verify the build:
@@ -235,6 +237,23 @@ Show LoginSheet              AuthService.loggedIn
 Observer detects cookie → Dismiss sheet
 ```
 
+## Performance Checklist
+
+Before completing non-trivial features, verify:
+
+- [ ] No `await` calls inside loops or `ForEach`
+- [ ] Lists use `LazyVStack`/`LazyHStack` for large datasets
+- [ ] Network calls cancelled on view disappear (`.task` handles this)
+- [ ] Parsers have `measure {}` tests if processing large payloads
+- [ ] Images use `ImageCache` (not loading inline)
+- [ ] Search input is debounced (not firing on every keystroke)
+
+Run performance tests:
+```bash
+xcodebuild test -scheme Kaset -destination 'platform=macOS' \
+  -only-testing:KasetTests/ParserPerformanceTests
+```
+
 ## Task Planning: Phases with Exit Criteria
 
 For any non-trivial task, **plan in phases with testable exit criteria** before writing code. This ensures incremental progress and early detection of issues.
@@ -271,6 +290,7 @@ Every task should be broken into phases. Each phase must have:
 | Implement business logic | Unit tests pass for new code |
 | Handle error cases | Error paths have test coverage |
 | Add logging | `DiagnosticsLogger` calls in place |
+| Performance verified | Anti-pattern checklist passed, perf tests added if applicable |
 
 **Exit gate**: `xcodebuild test -only-testing:KasetTests` passes.
 

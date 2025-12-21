@@ -166,8 +166,9 @@ enum ParsingHelpers {
         return nil
     }
 
-    /// Extracts duration from flex columns.
+    /// Extracts duration from flex columns or fixed columns.
     static func extractDurationFromFlexColumns(_ data: [String: Any]) -> TimeInterval? {
+        // Try fixedColumns first (most common for playlist/album tracks)
         if let fixedColumns = data["fixedColumns"] as? [[String: Any]] {
             for column in fixedColumns {
                 if let renderer = column["musicResponsiveListItemFixedColumnRenderer"] as? [String: Any],
@@ -180,6 +181,71 @@ enum ParsingHelpers {
                 }
             }
         }
+
+        // Try flexColumns (artist page top songs often have duration in the last column)
+        if let flexColumns = data["flexColumns"] as? [[String: Any]] {
+            // Check last flex column for duration (common pattern on artist pages)
+            for column in flexColumns.reversed() {
+                if let renderer = column["musicResponsiveListItemFlexColumnRenderer"] as? [String: Any],
+                   let text = renderer["text"] as? [String: Any],
+                   let runs = text["runs"] as? [[String: Any]],
+                   let firstRun = runs.first,
+                   let durationText = firstRun["text"] as? String
+                {
+                    // Check if this looks like a duration (e.g., "3:45" or "1:23:45")
+                    if let duration = parseDuration(durationText) {
+                        return duration
+                    }
+                }
+            }
+        }
+
+        // Try overlay play button for duration (used on some artist pages)
+        if let overlay = data["overlay"] as? [String: Any],
+           let musicItemThumbnailOverlay = overlay["musicItemThumbnailOverlayRenderer"] as? [String: Any],
+           let content = musicItemThumbnailOverlay["content"] as? [String: Any],
+           let musicPlayButton = content["musicPlayButtonRenderer"] as? [String: Any],
+           let accessibilityData = musicPlayButton["accessibilityPlayData"] as? [String: Any],
+           let accessibilityLabel = accessibilityData["accessibilityData"] as? [String: Any],
+           let label = accessibilityLabel["label"] as? String
+        {
+            // Extract duration from accessibility label like "Play Billie Jean by Michael Jackson, 4 minutes, 55 seconds"
+            if let duration = extractDurationFromAccessibilityLabel(label) {
+                return duration
+            }
+        }
+
+        return nil
+    }
+
+    /// Extracts duration from accessibility label text.
+    /// Handles formats like "4 minutes, 55 seconds" or "4:55"
+    private static func extractDurationFromAccessibilityLabel(_ label: String) -> TimeInterval? {
+        // Try "X minutes, Y seconds" format
+        let minutePattern = #"(\d+)\s*minutes?"#
+        let secondPattern = #"(\d+)\s*seconds?"#
+
+        var minutes = 0
+        var seconds = 0
+
+        if let minuteRegex = try? NSRegularExpression(pattern: minutePattern, options: .caseInsensitive),
+           let minuteMatch = minuteRegex.firstMatch(in: label, range: NSRange(label.startIndex..., in: label)),
+           let minuteRange = Range(minuteMatch.range(at: 1), in: label)
+        {
+            minutes = Int(label[minuteRange]) ?? 0
+        }
+
+        if let secondRegex = try? NSRegularExpression(pattern: secondPattern, options: .caseInsensitive),
+           let secondMatch = secondRegex.firstMatch(in: label, range: NSRange(label.startIndex..., in: label)),
+           let secondRange = Range(secondMatch.range(at: 1), in: label)
+        {
+            seconds = Int(label[secondRange]) ?? 0
+        }
+
+        if minutes > 0 || seconds > 0 {
+            return TimeInterval(minutes * 60 + seconds)
+        }
+
         return nil
     }
 

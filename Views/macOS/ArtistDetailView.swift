@@ -24,6 +24,7 @@ struct ArtistDetailView: View {
         }
         .accentBackground(from: viewModel.artistDetail?.thumbnailURL?.highQualityThumbnailURL)
         .navigationTitle(artist.name)
+        .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
         }
@@ -58,7 +59,7 @@ struct ArtistDetailView: View {
 
                 // Songs section
                 if !detail.songs.isEmpty {
-                    songsSection(detail.songs)
+                    songsSection()
                 }
 
                 // Albums section
@@ -100,6 +101,13 @@ struct ArtistDetailView: View {
                     .font(.title)
                     .fontWeight(.bold)
 
+                // Subscriber count
+                if let subscriberCount = detail.subscriberCount {
+                    Text(subscriberCount)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
                 if let description = detail.description, !description.isEmpty {
                     Text(description)
                         .font(.subheadline)
@@ -109,22 +117,30 @@ struct ArtistDetailView: View {
 
                 Spacer()
 
-                HStack(spacing: 16) {
-                    // Play all button
+                HStack(spacing: 12) {
+                    // Shuffle button
                     Button {
-                        playAll(detail.songs)
+                        shuffleAll(detail.songs)
                     } label: {
-                        Label("Play", systemImage: "play.fill")
+                        Label("Shuffle", systemImage: "shuffle")
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
                     .controlSize(.large)
                     .disabled(detail.songs.isEmpty)
 
-                    // Song count
-                    if !detail.songs.isEmpty {
-                        Text("\(detail.songs.count) songs")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    // Play all button (Mix)
+                    Button {
+                        playAll(detail.songs)
+                    } label: {
+                        Label("Mix", systemImage: "play.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(detail.songs.isEmpty)
+
+                    // Subscribe button
+                    if detail.channelId != nil {
+                        subscribeButton(detail)
                     }
                 }
             }
@@ -132,17 +148,90 @@ struct ArtistDetailView: View {
         }
     }
 
-    private func songsSection(_ songs: [Song]) -> some View {
+    /// Returns the text for the subscribe button.
+    private func subscribeButtonText(_ detail: ArtistDetail) -> String {
+        if detail.isSubscribed {
+            return "Subscribed"
+        }
+        // Format subscriber count (e.g., "Subscribe 34.6M")
+        if let count = detail.subscriberCount {
+            // Extract just the number part if it contains "subscribers"
+            let numberPart = count
+                .replacingOccurrences(of: " subscribers", with: "")
+                .replacingOccurrences(of: " subscriber", with: "")
+            return "Subscribe \(numberPart)"
+        }
+        return "Subscribe"
+    }
+
+    @ViewBuilder
+    private func subscribeButton(_ detail: ArtistDetail) -> some View {
+        if detail.isSubscribed {
+            Button {
+                Task {
+                    await viewModel.toggleSubscription()
+                }
+            } label: {
+                if viewModel.isSubscribing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text(subscribeButtonText(detail))
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(viewModel.isSubscribing)
+        } else {
+            Button {
+                Task {
+                    await viewModel.toggleSubscription()
+                }
+            } label: {
+                if viewModel.isSubscribing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Text(subscribeButtonText(detail))
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(viewModel.isSubscribing)
+        }
+    }
+
+    private func songsSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Songs")
-                .font(.title2)
-                .fontWeight(.semibold)
+            HStack {
+                Text("Top songs")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                Spacer()
+
+                // See all button - navigates to full top songs view
+                if viewModel.hasMoreSongs, let detail = viewModel.artistDetail {
+                    NavigationLink(value: TopSongsDestination(
+                        artistId: detail.id,
+                        artistName: detail.name,
+                        songs: detail.songs,
+                        songsBrowseId: detail.songsBrowseId,
+                        songsParams: detail.songsParams
+                    )) {
+                        Text("See all")
+                            .font(.subheadline)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.accent)
+                }
+            }
 
             VStack(spacing: 0) {
-                ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                    songRow(song, index: index, songs: songs)
+                ForEach(Array(viewModel.displayedSongs.enumerated()), id: \.element.id) { index, song in
+                    songRow(song, index: index, songs: viewModel.displayedSongs)
 
-                    if index < songs.count - 1 {
+                    if index < viewModel.displayedSongs.count - 1 {
                         Divider()
                             .padding(.leading, 44)
                     }
@@ -156,31 +245,49 @@ struct ArtistDetailView: View {
             playSongInQueue(songs: songs, startingAt: index)
         } label: {
             HStack(spacing: 12) {
-                // Index - use monospaced digits for alignment (display is 1-based)
-                Text("\(index + 1)")
-                    .font(.system(size: 14, design: .monospaced))
+                // Thumbnail
+                CachedAsyncImage(url: song.thumbnailURL?.highQualityThumbnailURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(.quaternary)
+                }
+                .frame(width: 40, height: 40)
+                .clipShape(.rect(cornerRadius: 4))
+
+                // Title
+                Text(song.title)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Artist column
+                Text(song.artistsDisplay)
+                    .font(.system(size: 14))
                     .foregroundStyle(.secondary)
-                    .frame(width: 28, alignment: .trailing)
+                    .lineLimit(1)
+                    .frame(width: 150, alignment: .leading)
 
-                // Title and artist
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(song.title)
+                // Album column (if available)
+                if let album = song.album {
+                    Text(album.title)
                         .font(.system(size: 14))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    Text(song.artistsDisplay)
-                        .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .frame(width: 150, alignment: .leading)
+                } else {
+                    Text("")
+                        .frame(width: 150, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Duration
                 Text(song.durationDisplay)
                     .font(.system(size: 12, design: .monospaced))
                     .foregroundStyle(.secondary)
-                    .frame(width: 45, alignment: .trailing)
+                    .frame(width: 50, alignment: .trailing)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 4)
@@ -290,6 +397,14 @@ struct ArtistDetailView: View {
         guard !songs.isEmpty else { return }
         Task {
             await playerService.playQueue(songs, startingAt: 0)
+        }
+    }
+
+    private func shuffleAll(_ songs: [Song]) {
+        guard !songs.isEmpty else { return }
+        Task {
+            let shuffledSongs = songs.shuffled()
+            await playerService.playQueue(shuffledSongs, startingAt: 0)
         }
     }
 }

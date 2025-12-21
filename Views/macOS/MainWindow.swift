@@ -110,19 +110,35 @@ struct MainWindow: View {
 
     @ViewBuilder
     private func detailView(for item: NavigationItem?, client: YTMusicClient) -> some View {
-        switch item {
-        case .home:
-            HomeView(viewModel: HomeViewModel(client: client))
-        case .explore:
-            ExploreView(viewModel: ExploreViewModel(client: client))
-        case .search:
-            SearchView(viewModel: SearchViewModel(client: client))
-        case .library:
-            LibraryView(viewModel: LibraryViewModel(client: client))
-        case .none:
-            Text("Select an item from the sidebar")
-                .foregroundStyle(.secondary)
+        HStack(spacing: 0) {
+            // Main content
+            Group {
+                switch item {
+                case .home:
+                    HomeView(viewModel: HomeViewModel(client: client))
+                case .explore:
+                    ExploreView(viewModel: ExploreViewModel(client: client))
+                case .search:
+                    SearchView(viewModel: SearchViewModel(client: client))
+                case .likedMusic:
+                    LikedMusicView(viewModel: LikedMusicViewModel(client: client))
+                case .library:
+                    LibraryView(viewModel: LibraryViewModel(client: client))
+                case .none:
+                    Text("Select an item from the sidebar")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Lyrics sidebar (shown when toggled)
+            if playerService.showLyrics {
+                Divider()
+                LyricsView(client: client)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: playerService.showLyrics)
     }
 
     private var loadingView: some View {
@@ -138,8 +154,7 @@ struct MainWindow: View {
     /// View shown while checking initial login status.
     private var initializingView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "music.note.house.fill")
-                .font(.system(size: 60))
+            CassetteIcon(size: 60)
                 .foregroundStyle(.tint)
             ProgressView()
         }
@@ -177,6 +192,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case home = "Home"
     case explore = "Explore"
     case search = "Search"
+    case likedMusic = "Liked Music"
     case library = "Library"
 
     var id: String { rawValue }
@@ -189,6 +205,8 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             "globe"
         case .search:
             "magnifyingglass"
+        case .likedMusic:
+            "heart.fill"
         case .library:
             "music.note.list"
         }

@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - AccentBackground
+
 /// A background view that displays a gradient based on colors extracted from an image.
 /// Creates an effect similar to Apple Music/YouTube Music album backgrounds.
 @available(macOS 26.0, *)
@@ -21,7 +23,7 @@ struct AccentBackground: View {
             RadialGradient(
                 colors: [
                     palette.primary.opacity(0.3),
-                    Color.clear
+                    Color.clear,
                 ],
                 center: .topLeading,
                 startRadius: 0,
@@ -54,6 +56,8 @@ struct AccentBackground: View {
         }
     }
 }
+
+// MARK: - AccentBackgroundModifier
 
 /// View modifier to apply accent background based on album art.
 @available(macOS 26.0, *)

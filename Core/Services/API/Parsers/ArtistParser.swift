@@ -7,14 +7,14 @@ enum ArtistParser {
 
     /// Parses artist detail from browse response.
     static func parseArtistDetail(_ data: [String: Any], artistId: String) -> ArtistDetail {
-        var name = "Unknown Artist"
-        var description: String?
-        var thumbnailURL: URL?
         var songs: [Song] = []
         var albums: [Album] = []
+        var hasMoreSongs = false
+        var songsBrowseId: String?
+        var songsParams: String?
 
         // Parse header
-        parseArtistHeader(data, name: &name, description: &description, thumbnailURL: &thumbnailURL)
+        let headerResult = parseArtistHeader(data, artistId: artistId)
 
         // Parse content sections for songs and albums
         if let contents = data["contents"] as? [String: Any],
@@ -32,6 +32,18 @@ enum ArtistParser {
                    let shelfContents = shelfRenderer["contents"] as? [[String: Any]]
                 {
                     songs.append(contentsOf: parseTracksFromItems(shelfContents))
+
+                    // Check if there are more songs available via bottomEndpoint
+                    if let bottomEndpoint = shelfRenderer["bottomEndpoint"] as? [String: Any],
+                       let browseEndpoint = bottomEndpoint["browseEndpoint"] as? [String: Any],
+                       let browseId = browseEndpoint["browseId"] as? String
+                    {
+                        hasMoreSongs = true
+                        songsBrowseId = browseId
+                        songsParams = browseEndpoint["params"] as? String
+                    } else if shelfRenderer["continuations"] != nil {
+                        hasMoreSongs = true
+                    }
                 }
 
                 // Parse albums from musicCarouselShelfRenderer
@@ -49,58 +61,175 @@ enum ArtistParser {
             }
         }
 
-        let artist = Artist(id: artistId, name: name, thumbnailURL: thumbnailURL)
+        let artist = Artist(id: artistId, name: headerResult.name, thumbnailURL: headerResult.thumbnailURL)
 
         return ArtistDetail(
             artist: artist,
-            description: description,
+            description: headerResult.description,
             songs: songs,
             albums: albums,
-            thumbnailURL: thumbnailURL
+            thumbnailURL: headerResult.thumbnailURL,
+            channelId: headerResult.channelId,
+            isSubscribed: headerResult.isSubscribed,
+            subscriberCount: headerResult.subscriberCount,
+            hasMoreSongs: hasMoreSongs,
+            songsBrowseId: songsBrowseId,
+            songsParams: songsParams
         )
     }
 
     // MARK: - Header Parsing
 
-    private static func parseArtistHeader(
-        _ data: [String: Any],
-        name: inout String,
-        description: inout String?,
-        thumbnailURL: inout URL?
-    ) {
+    /// Holds parsed header information for an artist.
+    private struct HeaderParseResult {
+        var name: String = "Unknown Artist"
+        var description: String?
+        var thumbnailURL: URL?
+        var channelId: String?
+        var isSubscribed: Bool = false
+        var subscriberCount: String?
+    }
+
+    private static func parseArtistHeader(_ data: [String: Any], artistId: String) -> HeaderParseResult {
+        var result = HeaderParseResult()
+        result.channelId = artistId.hasPrefix("UC") ? artistId : nil
+
         // Try musicImmersiveHeaderRenderer (common for artist pages)
         if let header = data["header"] as? [String: Any],
            let immersiveHeader = header["musicImmersiveHeaderRenderer"] as? [String: Any]
         {
             if let text = ParsingHelpers.extractTitle(from: immersiveHeader) {
-                name = text
+                result.name = text
             }
 
             if let descData = immersiveHeader["description"] as? [String: Any],
                let runs = descData["runs"] as? [[String: Any]]
             {
-                description = runs.compactMap { $0["text"] as? String }.joined()
+                result.description = runs.compactMap { $0["text"] as? String }.joined()
             }
 
             let thumbnails = ParsingHelpers.extractThumbnails(from: immersiveHeader)
-            thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+            result.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+
+            // Parse subscription button for channel ID and subscription status
+            parseSubscriptionButton(from: immersiveHeader, into: &result)
         }
 
         // Try musicVisualHeaderRenderer (alternative header format)
-        if name == "Unknown Artist",
+        if result.name == "Unknown Artist",
            let header = data["header"] as? [String: Any],
            let visualHeader = header["musicVisualHeaderRenderer"] as? [String: Any]
         {
             if let text = ParsingHelpers.extractTitle(from: visualHeader) {
-                name = text
+                result.name = text
             }
 
             let thumbnails = ParsingHelpers.extractThumbnails(from: visualHeader)
-            thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+            result.thumbnailURL = thumbnails.last.flatMap { URL(string: $0) }
+
+            // Parse subscription button for channel ID and subscription status
+            parseSubscriptionButton(from: visualHeader, into: &result)
+        }
+
+        return result
+    }
+
+    // MARK: - Subscription Parsing
+
+    private static func parseSubscriptionButton(from header: [String: Any], into result: inout HeaderParseResult) {
+        // Look for subscriptionButton in header
+        if let subscriptionButton = header["subscriptionButton"] as? [String: Any],
+           let subscribeButtonRenderer = subscriptionButton["subscribeButtonRenderer"] as? [String: Any]
+        {
+            // Extract channel ID
+            if let extractedChannelId = subscribeButtonRenderer["channelId"] as? String {
+                result.channelId = extractedChannelId
+            }
+
+            // Check subscription status
+            if let subscribed = subscribeButtonRenderer["subscribed"] as? Bool {
+                result.isSubscribed = subscribed
+            }
+
+            // Extract subscriber count text
+            if let subscriberCountText = subscribeButtonRenderer["subscriberCountText"] as? [String: Any],
+               let runs = subscriberCountText["runs"] as? [[String: Any]]
+            {
+                result.subscriberCount = runs.compactMap { $0["text"] as? String }.joined()
+            } else if let shortSubscriberCountText = subscribeButtonRenderer["shortSubscriberCountText"] as? [String: Any],
+                      let runs = shortSubscriberCountText["runs"] as? [[String: Any]]
+            {
+                result.subscriberCount = runs.compactMap { $0["text"] as? String }.joined()
+            }
+        }
+
+        // Alternative: look in menu for subscription status
+        if let menu = header["menu"] as? [String: Any],
+           let menuRenderer = menu["menuRenderer"] as? [String: Any],
+           let items = menuRenderer["items"] as? [[String: Any]]
+        {
+            for item in items {
+                if let toggleMenuItem = item["toggleMenuServiceItemRenderer"] as? [String: Any],
+                   let defaultIcon = toggleMenuItem["defaultIcon"] as? [String: Any],
+                   let iconType = defaultIcon["iconType"] as? String
+                {
+                    if iconType == "SUBSCRIBE" || iconType == "NOTIFICATION_OFF" {
+                        result.isSubscribed = false
+                    } else if iconType == "SUBSCRIBED" || iconType == "NOTIFICATION_ON" {
+                        result.isSubscribed = true
+                    }
+                }
+            }
         }
     }
 
     // MARK: - Content Parsing
+
+    /// Parses songs from artist songs browse response.
+    static func parseArtistSongs(_ data: [String: Any]) -> [Song] {
+        var songs: [Song] = []
+
+        // Try parsing from musicShelfRenderer in sectionListRenderer
+        if let contents = data["contents"] as? [String: Any],
+           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
+           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
+           let firstTab = tabs.first,
+           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
+           let tabContent = tabRenderer["content"] as? [String: Any],
+           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
+           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
+        {
+            for sectionData in sectionContents {
+                if let shelfRenderer = sectionData["musicShelfRenderer"] as? [String: Any],
+                   let shelfContents = shelfRenderer["contents"] as? [[String: Any]]
+                {
+                    songs.append(contentsOf: parseTracksFromItems(shelfContents))
+                }
+            }
+        }
+
+        // Try parsing from musicPlaylistShelfRenderer (alternative format)
+        if songs.isEmpty,
+           let contents = data["contents"] as? [String: Any],
+           let singleColumnBrowseResults = contents["singleColumnBrowseResultsRenderer"] as? [String: Any],
+           let tabs = singleColumnBrowseResults["tabs"] as? [[String: Any]],
+           let firstTab = tabs.first,
+           let tabRenderer = firstTab["tabRenderer"] as? [String: Any],
+           let tabContent = tabRenderer["content"] as? [String: Any],
+           let sectionListRenderer = tabContent["sectionListRenderer"] as? [String: Any],
+           let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
+        {
+            for sectionData in sectionContents {
+                if let playlistRenderer = sectionData["musicPlaylistShelfRenderer"] as? [String: Any],
+                   let playlistContents = playlistRenderer["contents"] as? [[String: Any]]
+                {
+                    songs.append(contentsOf: parseTracksFromItems(playlistContents))
+                }
+            }
+        }
+
+        return songs
+    }
 
     private static func parseTracksFromItems(_ items: [[String: Any]], fallbackThumbnailURL: URL? = nil) -> [Song] {
         var tracks: [Song] = []

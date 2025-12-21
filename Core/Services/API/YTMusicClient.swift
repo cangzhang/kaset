@@ -200,6 +200,20 @@ final class YTMusicClient: YTMusicClientProtocol {
         return playlists
     }
 
+    /// Fetches the user's liked songs.
+    func getLikedSongs() async throws -> [Song] {
+        logger.info("Fetching liked songs")
+
+        let body: [String: Any] = [
+            "browseId": "FEmusic_liked_videos",
+        ]
+
+        let data = try await request("browse", body: body)
+        let detail = PlaylistParser.parsePlaylistDetail(data, playlistId: "LM")
+        logger.info("Parsed \(detail.tracks.count) liked songs")
+        return detail.tracks
+    }
+
     /// Fetches playlist details including tracks.
     func getPlaylist(id: String) async throws -> PlaylistDetail {
         logger.info("Fetching playlist: \(id)")
@@ -249,6 +263,130 @@ final class YTMusicClient: YTMusicClientProtocol {
         let detail = ArtistParser.parseArtistDetail(data, artistId: id)
         logger.info("Parsed artist '\(detail.artist.name)' with \(detail.songs.count) songs and \(detail.albums.count) albums")
         return detail
+    }
+
+    /// Fetches all songs for an artist using the songs browse endpoint.
+    func getArtistSongs(browseId: String, params: String?) async throws -> [Song] {
+        logger.info("Fetching artist songs: \(browseId)")
+
+        var body: [String: Any] = [
+            "browseId": browseId,
+        ]
+
+        if let params {
+            body["params"] = params
+        }
+
+        let data = try await request("browse", body: body, ttl: APICache.TTL.artist)
+
+        let songs = ArtistParser.parseArtistSongs(data)
+        logger.info("Parsed \(songs.count) artist songs")
+        return songs
+    }
+
+    // MARK: - Lyrics
+
+    /// Fetches lyrics for a song by video ID.
+    /// - Parameter videoId: The video ID of the song
+    /// - Returns: Lyrics if available, or Lyrics.unavailable if not
+    func getLyrics(videoId: String) async throws -> Lyrics {
+        logger.info("Fetching lyrics for: \(videoId)")
+
+        // Step 1: Get the lyrics browse ID from the "next" endpoint
+        let nextBody: [String: Any] = [
+            "videoId": videoId,
+            "enablePersistentPlaylistPanel": true,
+            "isAudioOnly": true,
+            "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
+        ]
+
+        let nextData = try await request("next", body: nextBody)
+
+        guard let lyricsBrowseId = extractLyricsBrowseId(from: nextData) else {
+            logger.info("No lyrics available for: \(videoId)")
+            return .unavailable
+        }
+
+        // Step 2: Fetch the actual lyrics using the browse ID
+        let browseBody: [String: Any] = [
+            "browseId": lyricsBrowseId,
+        ]
+
+        let browseData = try await request("browse", body: browseBody)
+        let lyrics = parseLyrics(from: browseData)
+        logger.info("Fetched lyrics for \(videoId): \(lyrics.isAvailable ? "available" : "unavailable")")
+        return lyrics
+    }
+
+    /// Extracts the lyrics browse ID from the "next" endpoint response.
+    private func extractLyricsBrowseId(from data: [String: Any]) -> String? {
+        guard let contents = data["contents"] as? [String: Any],
+              let watchNextRenderer = contents["singleColumnMusicWatchNextResultsRenderer"] as? [String: Any],
+              let tabbedRenderer = watchNextRenderer["tabbedRenderer"] as? [String: Any],
+              let watchNextTabbedResults = tabbedRenderer["watchNextTabbedResultsRenderer"] as? [String: Any],
+              let tabs = watchNextTabbedResults["tabs"] as? [[String: Any]]
+        else {
+            return nil
+        }
+
+        // Find the lyrics tab (usually index 1, but search by content type to be safe)
+        for tab in tabs {
+            guard let tabRenderer = tab["tabRenderer"] as? [String: Any],
+                  let endpoint = tabRenderer["endpoint"] as? [String: Any],
+                  let browseEndpoint = endpoint["browseEndpoint"] as? [String: Any],
+                  let browseId = browseEndpoint["browseId"] as? String,
+                  browseId.hasPrefix("MPLYt")
+            else {
+                continue
+            }
+            return browseId
+        }
+
+        return nil
+    }
+
+    /// Parses lyrics from the browse endpoint response.
+    private func parseLyrics(from data: [String: Any]) -> Lyrics {
+        guard let contents = data["contents"] as? [String: Any],
+              let sectionListRenderer = contents["sectionListRenderer"] as? [String: Any],
+              let sectionContents = sectionListRenderer["contents"] as? [[String: Any]]
+        else {
+            return .unavailable
+        }
+
+        for section in sectionContents {
+            // Try musicDescriptionShelfRenderer (plain lyrics)
+            if let shelfRenderer = section["musicDescriptionShelfRenderer"] as? [String: Any] {
+                return parseLyricsFromShelf(shelfRenderer)
+            }
+        }
+
+        return .unavailable
+    }
+
+    /// Parses lyrics from a musicDescriptionShelfRenderer.
+    private func parseLyricsFromShelf(_ shelf: [String: Any]) -> Lyrics {
+        // Extract the description (lyrics text)
+        var lyricsText = ""
+        if let description = shelf["description"] as? [String: Any],
+           let runs = description["runs"] as? [[String: Any]]
+        {
+            lyricsText = runs.compactMap { $0["text"] as? String }.joined()
+        }
+
+        // Extract the footer (source attribution)
+        var source: String?
+        if let footer = shelf["footer"] as? [String: Any],
+           let runs = footer["runs"] as? [[String: Any]]
+        {
+            source = runs.compactMap { $0["text"] as? String }.joined()
+        }
+
+        if lyricsText.isEmpty {
+            return .unavailable
+        }
+
+        return Lyrics(text: lyricsText, source: source)
     }
 
     // MARK: - Song Metadata
@@ -347,14 +485,13 @@ final class YTMusicClient: YTMusicClientProtocol {
                   text != " • ", text != " & ", text != ", ", text != " · "
             else { continue }
 
-            let artistId: String
-            if let navEndpoint = run["navigationEndpoint"] as? [String: Any],
-               let browseEndpoint = navEndpoint["browseEndpoint"] as? [String: Any],
-               let browseId = browseEndpoint["browseId"] as? String
+            let artistId: String = if let navEndpoint = run["navigationEndpoint"] as? [String: Any],
+                                      let browseEndpoint = navEndpoint["browseEndpoint"] as? [String: Any],
+                                      let browseId = browseEndpoint["browseId"] as? String
             {
-                artistId = browseId
+                browseId
             } else {
-                artistId = UUID().uuidString
+                UUID().uuidString
             }
             artists.append(Artist(id: artistId, name: text))
         }
@@ -560,6 +697,40 @@ final class YTMusicClient: YTMusicClientProtocol {
         APICache.shared.invalidate(matching: "browse:")
     }
 
+    /// Subscribes to an artist by channel ID.
+    /// This is equivalent to the "Subscribe" action in YouTube Music.
+    /// - Parameter channelId: The channel ID of the artist (e.g., UCxxxxx)
+    func subscribeToArtist(channelId: String) async throws {
+        logger.info("Subscribing to artist: \(channelId)")
+
+        let body: [String: Any] = [
+            "channelIds": [channelId],
+        ]
+
+        _ = try await request("subscription/subscribe", body: body)
+        logger.info("Successfully subscribed to artist \(channelId)")
+
+        // Invalidate artist cache so UI updates
+        APICache.shared.invalidate(matching: "browse:")
+    }
+
+    /// Unsubscribes from an artist by channel ID.
+    /// This is equivalent to the "Unsubscribe" action in YouTube Music.
+    /// - Parameter channelId: The channel ID of the artist (e.g., UCxxxxx)
+    func unsubscribeFromArtist(channelId: String) async throws {
+        logger.info("Unsubscribing from artist: \(channelId)")
+
+        let body: [String: Any] = [
+            "channelIds": [channelId],
+        ]
+
+        _ = try await request("subscription/unsubscribe", body: body)
+        logger.info("Successfully unsubscribed from artist \(channelId)")
+
+        // Invalidate artist cache so UI updates
+        APICache.shared.invalidate(matching: "browse:")
+    }
+
     // MARK: - Private Methods
 
     /// Builds authentication headers for API requests.
@@ -619,8 +790,8 @@ final class YTMusicClient: YTMusicClientProtocol {
 
     /// Makes an authenticated request to the API with optional caching and retry.
     private func request(_ endpoint: String, body: [String: Any], ttl: TimeInterval? = nil) async throws -> [String: Any] {
-    // Generate stable cache key from endpoint and body
-    let cacheKey = APICache.stableCacheKey(endpoint: endpoint, body: body)
+        // Generate stable cache key from endpoint and body
+        let cacheKey = APICache.stableCacheKey(endpoint: endpoint, body: body)
 
         // Check cache first
         if ttl != nil, let cached = APICache.shared.get(key: cacheKey) {

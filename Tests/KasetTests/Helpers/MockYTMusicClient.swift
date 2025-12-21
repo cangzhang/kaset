@@ -10,8 +10,11 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     var exploreResponse: HomeResponse = .init(sections: [])
     var searchResponse: SearchResponse = .empty
     var libraryPlaylists: [Playlist] = []
+    var likedSongs: [Song] = []
     var playlistDetails: [String: PlaylistDetail] = [:]
     var artistDetails: [String: ArtistDetail] = [:]
+    var artistSongs: [String: [Song]] = [:]
+    var lyricsResponses: [String: Lyrics] = [:]
 
     // MARK: - Call Tracking
 
@@ -22,10 +25,13 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     private(set) var searchCalled = false
     private(set) var searchQueries: [String] = []
     private(set) var getLibraryPlaylistsCalled = false
+    private(set) var getLikedSongsCalled = false
     private(set) var getPlaylistCalled = false
     private(set) var getPlaylistIds: [String] = []
     private(set) var getArtistCalled = false
     private(set) var getArtistIds: [String] = []
+    private(set) var getArtistSongsCalled = false
+    private(set) var getArtistSongsBrowseIds: [String] = []
     private(set) var rateSongCalled = false
     private(set) var rateSongVideoIds: [String] = []
     private(set) var rateSongRatings: [LikeStatus] = []
@@ -35,6 +41,12 @@ final class MockYTMusicClient: YTMusicClientProtocol {
     private(set) var subscribeToPlaylistIds: [String] = []
     private(set) var unsubscribeFromPlaylistCalled = false
     private(set) var unsubscribeFromPlaylistIds: [String] = []
+    private(set) var subscribeToArtistCalled = false
+    private(set) var subscribeToArtistIds: [String] = []
+    private(set) var unsubscribeFromArtistCalled = false
+    private(set) var unsubscribeFromArtistIds: [String] = []
+    private(set) var getLyricsCalled = false
+    private(set) var getLyricsVideoIds: [String] = []
 
     // MARK: - Error Simulation
 
@@ -69,6 +81,12 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         return libraryPlaylists
     }
 
+    func getLikedSongs() async throws -> [Song] {
+        getLikedSongsCalled = true
+        if let error = shouldThrowError { throw error }
+        return likedSongs
+    }
+
     func getPlaylist(id: String) async throws -> PlaylistDetail {
         getPlaylistCalled = true
         getPlaylistIds.append(id)
@@ -87,6 +105,13 @@ final class MockYTMusicClient: YTMusicClientProtocol {
             throw YTMusicError.parseError(message: "Artist not found: \(id)")
         }
         return detail
+    }
+
+    func getArtistSongs(browseId: String, params _: String?) async throws -> [Song] {
+        getArtistSongsCalled = true
+        getArtistSongsBrowseIds.append(browseId)
+        if let error = shouldThrowError { throw error }
+        return artistSongs[browseId] ?? []
     }
 
     func rateSong(videoId: String, rating: LikeStatus) async throws {
@@ -114,6 +139,25 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         if let error = shouldThrowError { throw error }
     }
 
+    func subscribeToArtist(channelId: String) async throws {
+        subscribeToArtistCalled = true
+        subscribeToArtistIds.append(channelId)
+        if let error = shouldThrowError { throw error }
+    }
+
+    func unsubscribeFromArtist(channelId: String) async throws {
+        unsubscribeFromArtistCalled = true
+        unsubscribeFromArtistIds.append(channelId)
+        if let error = shouldThrowError { throw error }
+    }
+
+    func getLyrics(videoId: String) async throws -> Lyrics {
+        getLyricsCalled = true
+        getLyricsVideoIds.append(videoId)
+        if let error = shouldThrowError { throw error }
+        return lyricsResponses[videoId] ?? .unavailable
+    }
+
     // MARK: - Helper Methods
 
     /// Resets all call tracking.
@@ -125,10 +169,13 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         searchCalled = false
         searchQueries = []
         getLibraryPlaylistsCalled = false
+        getLikedSongsCalled = false
         getPlaylistCalled = false
         getPlaylistIds = []
         getArtistCalled = false
         getArtistIds = []
+        getArtistSongsCalled = false
+        getArtistSongsBrowseIds = []
         rateSongCalled = false
         rateSongVideoIds = []
         rateSongRatings = []
@@ -138,6 +185,12 @@ final class MockYTMusicClient: YTMusicClientProtocol {
         subscribeToPlaylistIds = []
         unsubscribeFromPlaylistCalled = false
         unsubscribeFromPlaylistIds = []
+        subscribeToArtistCalled = false
+        subscribeToArtistIds = []
+        unsubscribeFromArtistCalled = false
+        unsubscribeFromArtistIds = []
+        getLyricsCalled = false
+        getLyricsVideoIds = []
         shouldThrowError = nil
     }
 }

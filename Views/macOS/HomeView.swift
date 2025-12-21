@@ -39,6 +39,12 @@ struct HomeView: View {
                     )
                 )
             }
+            .navigationDestination(for: TopSongsDestination.self) { destination in
+                TopSongsView(viewModel: TopSongsViewModel(
+                    destination: destination,
+                    client: viewModel.client
+                ))
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
@@ -69,10 +75,10 @@ struct HomeView: View {
             LazyVStack(alignment: .leading, spacing: 32) {
                 ForEach(viewModel.sections) { section in
                     sectionView(section)
-            .task {
-              // Prefetch images when section becomes visible
-              await prefetchImagesAsync(for: section)
-            }
+                        .task {
+                            // Prefetch images when section becomes visible
+                            await prefetchImagesAsync(for: section)
+                        }
                 }
             }
             .padding(.horizontal, 24)
@@ -99,7 +105,7 @@ struct HomeView: View {
                     }
                 }
             }
-    }
+        }
     }
 
     /// Renders a chart section as a vertical numbered list.
@@ -121,7 +127,7 @@ struct HomeView: View {
             ZStack(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: 8) {
                     // Thumbnail
-                    AsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                    CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -210,19 +216,19 @@ struct HomeView: View {
 
     // MARK: - Image Prefetching
 
-  /// Thumbnail display size used throughout the app.
-  private static let thumbnailDisplaySize = CGSize(width: 160, height: 160)
+    /// Thumbnail display size used throughout the app.
+    private static let thumbnailDisplaySize = CGSize(width: 160, height: 160)
 
-  /// Prefetches images for items in a section with controlled concurrency and downsampling.
-  private func prefetchImagesAsync(for section: HomeSection) async {
-    let urls = section.items.prefix(10).compactMap { $0.thumbnailURL?.highQualityThumbnailURL }
-    guard !urls.isEmpty else { return }
+    /// Prefetches images for items in a section with controlled concurrency and downsampling.
+    private func prefetchImagesAsync(for section: HomeSection) async {
+        let urls = section.items.prefix(10).compactMap { $0.thumbnailURL?.highQualityThumbnailURL }
+        guard !urls.isEmpty else { return }
 
-    await ImageCache.shared.prefetch(
-      urls: urls,
-      targetSize: Self.thumbnailDisplaySize,
-      maxConcurrent: 4
-    )
+        await ImageCache.shared.prefetch(
+            urls: urls,
+            targetSize: Self.thumbnailDisplaySize,
+            maxConcurrent: 4
+        )
     }
 
     private func errorView(message: String) -> some View {

@@ -24,6 +24,10 @@ struct Sidebar: View {
 
             // Library section
             Section("Library") {
+                NavigationLink(value: NavigationItem.likedMusic) {
+                    Label("Liked Music", systemImage: "heart.fill")
+                }
+
                 NavigationLink(value: NavigationItem.library) {
                     Label("Playlists", systemImage: "music.note.list")
                 }

@@ -1,6 +1,8 @@
 import AVKit
 import SwiftUI
 
+// MARK: - PlayerBar
+
 /// Player bar shown at the bottom of the content area, styled like Apple Music with Liquid Glass.
 @available(macOS 26.0, *)
 struct PlayerBar: View {
@@ -126,24 +128,17 @@ struct PlayerBar: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 40, alignment: .trailing)
 
-            // Seek slider with debounced updates
-            Slider(value: $seekValue, in: 0 ... 1)
-                .controlSize(.small)
-                .onChange(of: seekValue) { _, _ in
-                    // Mark as seeking to prevent external updates
+            // Seek slider
+            Slider(value: $seekValue, in: 0 ... 1) { editing in
+                if editing {
+                    // User started dragging
                     isSeeking = true
-                }
-                .onSubmit {
-                    // Called when user presses Enter, perform seek
+                } else {
+                    // User finished dragging - perform seek
                     performSeek()
                 }
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 0)
-                        .onEnded { _ in
-                            // Seek only when drag ends
-                            performSeek()
-                        }
-                )
+            }
+            .controlSize(.small)
 
             // Remaining time
             Text("-\(formatTime(playerService.duration - (isSeeking ? seekValue * playerService.duration : playerService.progress)))")
@@ -304,10 +299,12 @@ struct PlayerBar: View {
         }
     }
 
-// MARK: - Action Buttons (Like/Dislike/Library)
+    // MARK: - Action Buttons (Like/Dislike/Lyrics)
 
     private var actionButtons: some View {
-        HStack(spacing: 12) {
+        @Bindable var player = playerService
+
+        return HStack(spacing: 12) {
             // Dislike button
             Button {
                 playerService.dislikeCurrentTrack()
@@ -337,6 +334,21 @@ struct PlayerBar: View {
             .accessibilityLabel("Like")
             .accessibilityValue(playerService.currentTrackLikeStatus == .like ? "Liked" : "Not liked")
             .disabled(playerService.currentTrack == nil)
+
+            // Lyrics button
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    player.showLyrics.toggle()
+                }
+            } label: {
+                Image(systemName: "quote.bubble")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(playerService.showLyrics ? .red : .primary.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Lyrics")
+            .accessibilityValue(playerService.showLyrics ? "Showing" : "Hidden")
+            .disabled(playerService.currentTrack == nil)
         }
     }
 
@@ -352,7 +364,7 @@ struct PlayerBar: View {
     }
 }
 
-// MARK: - AirPlay Button
+// MARK: - AirPlayButton
 
 /// A SwiftUI wrapper for AVRoutePickerView to show AirPlay destinations.
 @available(macOS 26.0, *)

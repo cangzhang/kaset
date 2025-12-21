@@ -50,8 +50,8 @@ enum ColorExtractor {
         var colors: [WeightedColor] = []
 
         // Sample pixels
-        for yCoord in 0..<sampleSize {
-            for xCoord in 0..<sampleSize {
+        for yCoord in 0 ..< sampleSize {
+            for xCoord in 0 ..< sampleSize {
                 let offset = (yCoord * sampleSize + xCoord) * 4
                 let red = CGFloat(pointer[offset]) / 255.0
                 let green = CGFloat(pointer[offset + 1]) / 255.0
@@ -64,7 +64,7 @@ enum ColorExtractor {
                 let brightness = maxC
 
                 // Skip very dark or very light pixels
-                if brightness > 0.1 && brightness < 0.95 {
+                if brightness > 0.1, brightness < 0.95 {
                     let weight = saturation * 0.7 + 0.3
                     colors.append(WeightedColor(red: red, green: green, blue: blue, weight: weight))
                 }

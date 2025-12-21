@@ -87,6 +87,9 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
     /// Feedback tokens for the current track (used for library add/remove).
     private(set) var currentTrackFeedbackTokens: FeedbackTokens?
 
+    /// Whether the lyrics panel is visible.
+    var showLyrics: Bool = false
+
     // MARK: - Private Properties
 
     private let logger = DiagnosticsLogger.player

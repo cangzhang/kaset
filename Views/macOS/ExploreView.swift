@@ -38,6 +38,12 @@ struct ExploreView: View {
                     )
                 )
             }
+            .navigationDestination(for: TopSongsDestination.self) { destination in
+                TopSongsView(viewModel: TopSongsViewModel(
+                    destination: destination,
+                    client: viewModel.client
+                ))
+            }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
@@ -111,7 +117,7 @@ struct ExploreView: View {
         } label: {
             ZStack(alignment: .bottomLeading) {
                 VStack(alignment: .leading, spacing: 8) {
-                    AsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                    CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
                         image
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -158,7 +164,7 @@ struct ExploreView: View {
             playItem(item)
         } label: {
             VStack(alignment: .leading, spacing: 8) {
-                AsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
+                CachedAsyncImage(url: item.thumbnailURL?.highQualityThumbnailURL) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)

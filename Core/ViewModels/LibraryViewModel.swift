@@ -82,6 +82,10 @@ final class LibraryViewModel {
             libraryPlaylistIds = Set(loadedPlaylists.map(\.id))
             loadingState = .loaded
             logger.info("Loaded \(loadedPlaylists.count) playlists")
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
+            logger.debug("Library load cancelled")
+            loadingState = .idle
         } catch {
             logger.error("Failed to load library: \(error.localizedDescription)")
             loadingState = .error(error.localizedDescription)
@@ -101,6 +105,10 @@ final class LibraryViewModel {
             playlistDetailLoadingState = .loaded
             let trackCount = detail.tracks.count
             logger.info("Loaded playlist with \(trackCount) tracks")
+        } catch is CancellationError {
+            // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
+            logger.debug("Playlist load cancelled")
+            playlistDetailLoadingState = .idle
         } catch {
             logger.error("Failed to load playlist: \(error.localizedDescription)")
             playlistDetailLoadingState = .error(error.localizedDescription)

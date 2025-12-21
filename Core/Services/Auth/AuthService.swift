@@ -47,12 +47,18 @@ final class AuthService: AuthServiceProtocol {
     func checkLoginStatus() async {
         logger.debug("Checking login status from cookies")
 
+        // Log detailed cookie info for debugging
+        #if DEBUG
+            await webKitManager.logAuthCookies()
+        #endif
+
         // Retry a few times to handle WebKit cookie store lazy loading
         // Cookies may not be immediately available on cold start
-        let maxAttempts = 3
-        let delayBetweenAttempts: Duration = .milliseconds(500)
+        // Increased attempts and delay to account for disk I/O
+        let maxAttempts = 5
+        let delayBetweenAttempts: Duration = .milliseconds(800)
 
-        for attempt in 1...maxAttempts {
+        for attempt in 1 ... maxAttempts {
             logger.debug("Login check attempt \(attempt) of \(maxAttempts)")
 
             if let sapisid = await webKitManager.getSAPISID() {

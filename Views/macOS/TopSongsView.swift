@@ -1,0 +1,159 @@
+import SwiftUI
+
+/// View displaying all top songs for an artist.
+@available(macOS 26.0, *)
+struct TopSongsView: View {
+    @State var viewModel: TopSongsViewModel
+    @Environment(PlayerService.self) private var playerService
+
+    var body: some View {
+        Group {
+            switch viewModel.loadingState {
+            case .idle, .loading:
+                if viewModel.songs.isEmpty {
+                    loadingView
+                } else {
+                    // Show existing songs while loading more
+                    songsListView
+                        .overlay(alignment: .top) {
+                            if viewModel.loadingState == .loading {
+                                ProgressView()
+                                    .padding()
+                            }
+                        }
+                }
+            case .loaded, .error:
+                songsListView
+            }
+        }
+        .navigationTitle("Top songs")
+        .toolbarBackgroundVisibility(.hidden, for: .automatic)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            PlayerBar()
+        }
+        .task {
+            if viewModel.loadingState == .idle {
+                await viewModel.load()
+            }
+        }
+    }
+
+    // MARK: - Views
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+            Text("Loading songs...")
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var songsListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(Array(viewModel.songs.enumerated()), id: \.element.id) { index, song in
+                    songRow(song, index: index)
+
+                    if index < viewModel.songs.count - 1 {
+                        Divider()
+                            .padding(.leading, 56)
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+        }
+    }
+
+    // MARK: - Song Row
+
+    private func songRow(_ song: Song, index: Int) -> some View {
+        Button {
+            playSongInQueue(startingAt: index)
+        } label: {
+            HStack(spacing: 12) {
+                // Thumbnail
+                CachedAsyncImage(url: song.thumbnailURL?.highQualityThumbnailURL) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle()
+                        .fill(.quaternary)
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(.rect(cornerRadius: 4))
+
+                // Title
+                Text(song.title)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Artist column
+                Text(song.artistsDisplay)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 150, alignment: .leading)
+
+                // Album column (if available)
+                if let album = song.album {
+                    Text(album.title)
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .frame(width: 180, alignment: .leading)
+                } else {
+                    Spacer()
+                        .frame(width: 180)
+                }
+
+                // Duration
+                Text(song.durationDisplay)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 50, alignment: .trailing)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Actions
+
+    private func playSongInQueue(startingAt index: Int) {
+        Task {
+            await playerService.playQueue(viewModel.songs, startingAt: index)
+        }
+    }
+}
+
+#Preview {
+    let songs = (1 ... 10).map { i in
+        Song(
+            id: "song\(i)",
+            title: "Song \(i)",
+            artists: [Artist(id: "artist1", name: "Test Artist")],
+            album: Album(id: "album1", title: "Test Album", artists: nil, thumbnailURL: nil, year: "2023", trackCount: 10),
+            duration: TimeInterval(180 + i * 30),
+            thumbnailURL: nil,
+            videoId: "video\(i)"
+        )
+    }
+    let destination = TopSongsDestination(
+        artistId: "artist1",
+        artistName: "Test Artist",
+        songs: songs,
+        songsBrowseId: nil,
+        songsParams: nil
+    )
+    let authService = AuthService()
+    let client = YTMusicClient(authService: authService, webKitManager: .shared)
+    TopSongsView(viewModel: TopSongsViewModel(destination: destination, client: client))
+        .environment(PlayerService())
+}

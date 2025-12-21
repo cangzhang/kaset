@@ -17,7 +17,7 @@ struct PlaylistDetailView: View {
 
     init(playlist: Playlist, viewModel: PlaylistDetailViewModel) {
         self.playlist = playlist
-        self._viewModel = State(initialValue: viewModel)
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
@@ -37,6 +37,7 @@ struct PlaylistDetailView: View {
         }
         .accentBackground(from: viewModel.playlistDetail?.thumbnailURL?.highQualityThumbnailURL)
         .navigationTitle(playlist.title)
+        .toolbarBackgroundVisibility(.hidden, for: .automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             PlayerBar()
         }
@@ -157,7 +158,7 @@ struct PlaylistDetailView: View {
     }
 
     private func tracksView(_ tracks: [Song], isAlbum: Bool) -> some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
                 trackRow(track, index: index, tracks: tracks, isAlbum: isAlbum)
 

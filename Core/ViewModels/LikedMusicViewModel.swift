@@ -1,11 +1,10 @@
 import Foundation
 import Observation
-import os
 
-/// View model for the Explore view.
+/// View model for the Liked Music view.
 @MainActor
 @Observable
-final class ExploreViewModel {
+final class LikedMusicViewModel {
     /// Loading states for the view.
     enum LoadingState: Equatable, Sendable {
         case idle
@@ -17,10 +16,10 @@ final class ExploreViewModel {
     /// Current loading state.
     private(set) var loadingState: LoadingState = .idle
 
-    /// Explore sections to display.
-    private(set) var sections: [HomeSection] = []
+    /// Liked songs.
+    private(set) var songs: [Song] = []
 
-    /// The API client (exposed for navigation to detail views).
+    /// The API client.
     let client: any YTMusicClientProtocol
     private let logger = DiagnosticsLogger.api
 
@@ -28,32 +27,31 @@ final class ExploreViewModel {
         self.client = client
     }
 
-    /// Loads explore content.
+    /// Loads liked songs.
     func load() async {
         guard loadingState != .loading else { return }
 
         loadingState = .loading
-        logger.info("Loading explore content")
+        logger.info("Loading liked songs")
 
         do {
-            let response = try await client.getExplore()
-            sections = response.sections
+            let loadedSongs = try await client.getLikedSongs()
+            songs = loadedSongs
             loadingState = .loaded
-            let sectionCount = sections.count
-            logger.info("Explore content loaded: \(sectionCount) sections")
+            logger.info("Loaded \(loadedSongs.count) liked songs")
         } catch is CancellationError {
             // Task was cancelled (e.g., user navigated away) — reset to idle so it can retry
-            logger.debug("Explore load cancelled")
+            logger.debug("Liked songs load cancelled")
             loadingState = .idle
         } catch {
-            logger.error("Failed to load explore: \(error.localizedDescription)")
+            logger.error("Failed to load liked songs: \(error.localizedDescription)")
             loadingState = .error(error.localizedDescription)
         }
     }
 
-    /// Refreshes explore content.
+    /// Refreshes liked songs.
     func refresh() async {
-        sections = []
+        songs = []
         await load()
     }
 }

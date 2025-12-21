@@ -110,7 +110,15 @@ Makes authenticated requests to YouTube Music's internal API:
 - `getExplore()` → Explore page (new releases, charts, moods)
 - `search(query:)` → Search results
 - `getLibraryPlaylists()` → User's playlists
+- `getLikedSongs()` → User's liked songs
 - `getPlaylist(id:)` → Playlist details
+- `getArtist(id:)` → Artist details with songs and albums
+- `getLyrics(videoId:)` → Lyrics for a track (two-step: next → browse)
+- `rateSong(videoId:rating:)` → Like/dislike a song
+- `subscribeToArtist(channelId:)` → Subscribe to an artist
+- `unsubscribeFromArtist(channelId:)` → Unsubscribe from an artist
+- `subscribeToPlaylist(playlistId:)` → Add playlist to library
+- `unsubscribeFromPlaylist(playlistId:)` → Remove playlist from library
 
 ### API Parsers
 
@@ -124,7 +132,7 @@ Response parsing is extracted into specialized modules:
 | `HomeResponseParser.swift` | Home/Explore page sections |
 | `SearchResponseParser.swift` | Search results |
 | `PlaylistParser.swift` | Playlist details, library playlists |
-| `ArtistParser.swift` | Artist details |
+| `ArtistParser.swift` | Artist details (songs, albums, subscription status) |
 
 **Design**: Static enum-based parsers with pure functions for testability.
 
@@ -142,6 +150,7 @@ Controls audio playback via singleton WebView:
 | `duration` | `Double` | Track length (seconds) |
 | `pendingPlayVideoId` | `String?` | Video ID to play |
 | `showMiniPlayer` | `Bool` | Mini player visibility |
+| `showLyrics` | `Bool` | Lyrics panel visibility |
 
 **Key Methods**:
 - `play(videoId:)` — Loads and plays a video

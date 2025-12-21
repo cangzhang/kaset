@@ -14,8 +14,7 @@ struct OnboardingView: View {
 
             // App icon and title
             VStack(spacing: 16) {
-                Image(systemName: "music.note.house.fill")
-                    .font(.system(size: 80))
+                CassetteIcon(size: 80)
                     .foregroundStyle(.tint)
 
                 Text("Welcome to Kaset")
