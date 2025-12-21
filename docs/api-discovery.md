@@ -161,15 +161,15 @@ These endpoints are functional but not yet implemented in Kaset.
 | `FEmusic_history` | History | 🔐 | **High** | Recently played tracks |
 | `FEmusic_podcasts` | Podcasts | 🌐 | Low | Podcast discovery |
 | `FEmusic_library_landing` | Library Landing | 🔐 | Medium | Library overview |
-| `FEmusic_library_albums` | Library Albums | 🔐 | Medium | Saved albums* |
-| `FEmusic_library_artists` | Library Artists | 🔐 | Medium | Followed artists* |
-| `FEmusic_library_songs` | Library Songs | 🔐 | Low | All library songs* |
-| `FEmusic_recently_played` | Recently Played | 🔐 | Medium | Quick access to recent |
+| `FEmusic_library_albums` | Library Albums | 🔐 | Medium | Requires auth + params* |
+| `FEmusic_library_artists` | Library Artists | 🔐 | Medium | Requires auth + params* |
+| `FEmusic_library_songs` | Library Songs | 🔐 | Low | Requires auth + params* |
+| `FEmusic_recently_played` | Recently Played | 🔐 | Medium | Requires auth |
 | `FEmusic_library_privately_owned_landing` | Uploads | 🔐 | Low | User-uploaded content |
 | `FEmusic_library_privately_owned_tracks` | Uploaded Tracks | 🔐 | Low | Uploaded songs |
 | `FEmusic_library_privately_owned_albums` | Uploaded Albums | 🔐 | Low | Uploaded albums |
 
-> \* These endpoints may require additional parameters - currently return 400 errors.
+> \* Library Albums/Artists/Songs return HTTP 400 without authentication. With authentication, they also require specific `params` values for sorting. The exact param encoding needs to be captured from web client requests.
 
 ---
 
@@ -374,51 +374,85 @@ let body = ["videoId": "dQw4w9WgXcQ"]
     "lengthSeconds": "213",
     "author": "Rick Astley",
     "channelId": "UCuAXFkgsw1L7xaCfnd5JJOw",
-    "thumbnail": { "thumbnails": [...] }
+    "thumbnail": { "thumbnails": [...] },
+    "viewCount": "1500000000",
+    "isLiveContent": false,
+    "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
   },
-  "captions": { ... }
+  "captions": { ... },
+  "storyboards": { ... },
+  "microformat": { ... }
 }
 ```
 
+**Full response keys** (verified):
+- `responseContext`, `playabilityStatus`, `streamingData`, `playerAds`
+- `playbackTracking`, `captions`, `videoDetails`, `annotations`
+- `playerConfig`, `storyboards`, `microformat`, `cards`
+- `trackingParams`, `messages`, `endscreen`, `adPlacements`, `adSlots`
+
+**videoDetails keys**:
+- `videoId`, `title`, `lengthSeconds`, `channelId`, `author`
+- `thumbnail`, `viewCount`, `isPrivate`, `musicVideoType`, `isLiveContent`
+
+**streamingData** (26 adaptive formats available):
+- `expiresInSeconds`, `formats`, `adaptiveFormats`, `serverAbrStreamingUrl`
+- Audio formats include: `audio/mp4; codecs="mp4a.40.2"` at ~130kbps
+
 **Use cases**:
-- Quick metadata lookup
+- Quick metadata lookup (title, duration, author)
 - Get video duration without `next` call
-- Check playability status
+- Check playability status before attempting playback
+- Get thumbnail URLs
 
 ---
 
 #### Get Queue (`music/get_queue`)
 
 ```swift
-let body = ["videoIds": ["dQw4w9WgXcQ", "abc123..."]]
+let body = ["videoIds": ["dQw4w9WgXcQ", "fJ9rUzIMcZQ"]]
 ```
 
-**Response** (works WITHOUT auth!):
+**Response** (works WITHOUT auth! - verified):
 ```json
 {
+  "responseContext": {...},
   "queueDatas": [{
     "content": {
       "playlistPanelVideoRenderer": {
-        "videoId": "...",
-        "title": {...},
-        "thumbnail": {...}
+        "title": {"runs": [{"text": "Never Gonna Give You Up"}]},
+        "longBylineText": {...},
+        "thumbnail": {...},
+        "lengthText": {...},
+        "videoId": "dQw4w9WgXcQ",
+        "shortBylineText": {...},
+        "menu": {...},
+        "navigationEndpoint": {...}
       }
     }
-  }]
+  }],
+  "queueContextParams": "..."
 }
 ```
 
-**Use case**: Get metadata for multiple videos in one call (for queue display).
+**playlistPanelVideoRenderer keys** (verified):
+- `title`, `longBylineText`, `thumbnail`, `lengthText`
+- `selected`, `navigationEndpoint`, `videoId`, `shortBylineText`
+- `trackingParams`, `menu`
+
+**Use case**: Get metadata for multiple videos in one call (essential for queue display).
 
 ---
 
 #### Playlist Management
 
+All playlist management endpoints require authentication (HTTP 401 without auth):
+
 ```swift
 // Get playlists for "Add to Playlist" menu
 let body = ["videoIds": ["dQw4w9WgXcQ"]]
 let response = try await request("playlist/get_add_to_playlist", body: body)
-// Requires auth
+// Returns HTTP 401 without auth
 
 // Add to playlist
 let body = [
@@ -426,7 +460,17 @@ let body = [
     "actions": [["addedVideoId": "dQw4w9WgXcQ", "action": "ACTION_ADD_VIDEO"]]
 ]
 try await request("browse/edit_playlist", body: body)
-// Requires auth
+// Returns HTTP 401 without auth
+
+// Create playlist
+let body = [
+    "title": "My Playlist",
+    "description": "",
+    "privacyStatus": "PRIVATE",
+    "videoIds": []
+]
+try await request("playlist/create", body: body)
+// Returns HTTP 401 without auth
 ```
 
 ---
@@ -612,3 +656,40 @@ Each `EndpointConfig` contains:
 |------|---------|
 | 2024-12-21 | Initial comprehensive documentation |
 | 2024-12-21 | Added APIExplorer tool documentation |
+| 2024-12-21 | Verified Player and Queue endpoints with detailed response structures |
+| 2024-12-21 | Confirmed Library Albums/Artists/Songs require auth + params |
+| 2024-12-21 | Documented playlist management auth requirements |
+
+---
+
+## Verification Summary
+
+The following endpoints were tested without authentication on 2024-12-21:
+
+### ✅ Working Without Auth
+
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `FEmusic_home` | HTTP 200 | Full response |
+| `FEmusic_explore` | HTTP 200 | Full response |
+| `FEmusic_charts` | HTTP 200 | Full response |
+| `FEmusic_moods_and_genres` | HTTP 200 | Full response |
+| `FEmusic_new_releases` | HTTP 200 | Full response |
+| `FEmusic_podcasts` | HTTP 200 | Full response |
+| `FEmusic_library_landing` | HTTP 200 | Returns login prompt (no content) |
+| `player` | HTTP 200 | Full metadata + streaming info |
+| `music/get_queue` | HTTP 200 | Full queue data |
+| `search` | HTTP 200 | Full results |
+
+### 🔐 Requires Authentication
+
+| Endpoint | Status | Notes |
+|----------|--------|-------|
+| `FEmusic_history` | HTTP 401 | Needs auth |
+| `FEmusic_library_albums` | HTTP 400 | Needs auth + params |
+| `FEmusic_library_artists` | HTTP 400 | Needs auth + params |
+| `FEmusic_library_songs` | HTTP 400 | Needs auth + params |
+| `FEmusic_recently_played` | HTTP 400 | Needs auth |
+| `playlist/get_add_to_playlist` | HTTP 401 | Needs auth |
+| `playlist/create` | HTTP 401 | Needs auth |
+| `browse/edit_playlist` | HTTP 401 | Needs auth |

@@ -211,6 +211,7 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
     /// Updates playback state from the persistent WebView observer.
     func updatePlaybackState(isPlaying: Bool, progress: Double, duration: Double) {
+        let previousProgress = self.progress
         self.progress = progress
         self.duration = duration
         if isPlaying {
@@ -218,9 +219,19 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
         } else if self.state == .playing {
             self.state = .paused
         }
+
+        // Detect when song is about to end (within last 2 seconds)
+        // This helps us prepare to play the next track from our queue
+        if duration > 0, progress >= duration - 2, previousProgress < duration - 2 {
+            self.songNearingEnd = true
+        }
     }
 
+    /// Flag to track when a song is nearing its end.
+    private var songNearingEnd: Bool = false
+
     /// Updates track metadata when track changes (e.g., via next/previous).
+    /// Also handles enforcing our queue when YouTube autoplay kicks in.
     func updateTrackMetadata(title: String, artist: String, thumbnailUrl: String) {
         self.logger.debug("Track metadata updated: \(title) - \(artist)")
 
@@ -232,6 +243,30 @@ final class PlayerService: NSObject, PlayerServiceProtocol {
 
         // Check if track actually changed
         let trackChanged = self.currentTrack?.title != title || self.currentTrack?.artistsDisplay != artist
+
+        // If track changed and we have a queue, check if YouTube autoplay kicked in
+        if trackChanged, !self.queue.isEmpty, self.songNearingEnd {
+            self.songNearingEnd = false
+
+            // Check if the new track matches our expected next track in queue
+            let expectedNextIndex = self.currentIndex + 1
+            if expectedNextIndex < self.queue.count {
+                let expectedNextTrack = self.queue[expectedNextIndex]
+                // If title doesn't match expected next track, YouTube autoplay overrode our queue
+                if title != expectedNextTrack.title {
+                    self.logger.info("YouTube autoplay detected, overriding with queue track")
+                    // Play our queue's next track instead
+                    Task {
+                        await self.next()
+                    }
+                    return
+                } else {
+                    // Track matches our queue, update the index
+                    self.currentIndex = expectedNextIndex
+                    self.logger.info("Track advanced to queue index \(expectedNextIndex)")
+                }
+            }
+        }
 
         self.currentTrack = Song(
             id: videoId,

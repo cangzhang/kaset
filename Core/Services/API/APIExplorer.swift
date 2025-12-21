@@ -217,7 +217,8 @@ final class APIExplorer {
             name: "Library Landing",
             description: "Library overview with recent activity",
             requiresAuth: true,
-            isImplemented: false
+            isImplemented: false,
+            notes: "Returns HTTP 200 but only login prompt without auth"
         ),
         EndpointConfig(
             id: "FEmusic_library_albums",
@@ -225,7 +226,7 @@ final class APIExplorer {
             description: "Albums saved to user's library",
             requiresAuth: true,
             isImplemented: false,
-            notes: "May need special params - currently returns 400"
+            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
         ),
         EndpointConfig(
             id: "FEmusic_library_artists",
@@ -233,7 +234,7 @@ final class APIExplorer {
             description: "Artists the user follows/subscribes to",
             requiresAuth: true,
             isImplemented: false,
-            notes: "May need special params - currently returns 400"
+            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
         ),
         EndpointConfig(
             id: "FEmusic_library_songs",
@@ -241,14 +242,15 @@ final class APIExplorer {
             description: "All songs in user's library",
             requiresAuth: true,
             isImplemented: false,
-            notes: "May need special params - currently returns 400"
+            notes: "Returns HTTP 400 without auth+params. Needs sort params from web client."
         ),
         EndpointConfig(
             id: "FEmusic_recently_played",
             name: "Recently Played",
             description: "Quick access to recently played content",
             requiresAuth: true,
-            isImplemented: false
+            isImplemented: false,
+            notes: "Returns HTTP 400 without auth. May overlap with FEmusic_history."
         ),
         EndpointConfig(
             id: "FEmusic_offline",
@@ -365,7 +367,7 @@ final class APIExplorer {
             description: "Get video details, streaming formats, captions",
             requiresAuth: false,
             isImplemented: false,
-            notes: "Returns full video metadata without auth"
+            notes: "Verified: Returns 17+ keys including videoDetails, streamingData (26 formats), playabilityStatus"
         ),
         EndpointConfig(
             id: "music/get_queue",
@@ -373,28 +375,31 @@ final class APIExplorer {
             description: "Get queue data for video IDs",
             requiresAuth: false,
             isImplemented: false,
-            notes: "Works without auth for public videos"
+            notes: "Verified: Returns queueDatas with playlistPanelVideoRenderer per video"
         ),
         EndpointConfig(
             id: "playlist/get_add_to_playlist",
             name: "Get Add to Playlist",
             description: "Get user's playlists for 'Add to Playlist' menu",
             requiresAuth: true,
-            isImplemented: false
+            isImplemented: false,
+            notes: "Verified: Returns HTTP 401 without auth"
         ),
         EndpointConfig(
             id: "browse/edit_playlist",
             name: "Edit Playlist",
             description: "Add/remove tracks from a playlist",
             requiresAuth: true,
-            isImplemented: false
+            isImplemented: false,
+            notes: "Verified: Returns HTTP 401 without auth"
         ),
         EndpointConfig(
             id: "playlist/create",
             name: "Create Playlist",
             description: "Create a new playlist",
             requiresAuth: true,
-            isImplemented: false
+            isImplemented: false,
+            notes: "Verified: Returns HTTP 401 without auth"
         ),
         EndpointConfig(
             id: "playlist/delete",
