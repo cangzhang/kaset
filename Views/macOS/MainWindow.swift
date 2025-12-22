@@ -8,11 +8,13 @@ struct MainWindow: View {
     @Environment(AuthService.self) private var authService
     @Environment(PlayerService.self) private var playerService
     @Environment(WebKitManager.self) private var webKitManager
+    @Environment(\.showCommandBar) private var showCommandBar
 
     /// Binding to navigation selection for keyboard shortcut control from parent.
     @Binding var navigationSelection: NavigationItem?
 
     @State private var showLoginSheet = false
+    @State private var showCommandBarSheet = false
     @State private var ytMusicClient: (any YTMusicClientProtocol)?
 
     // MARK: - Cached ViewModels (persist across tab switches)
@@ -20,6 +22,9 @@ struct MainWindow: View {
     @State private var homeViewModel: HomeViewModel?
     @State private var exploreViewModel: ExploreViewModel?
     @State private var searchViewModel: SearchViewModel?
+    @State private var chartsViewModel: ChartsViewModel?
+    @State private var moodsAndGenresViewModel: MoodsAndGenresViewModel?
+    @State private var newReleasesViewModel: NewReleasesViewModel?
     @State private var likedMusicViewModel: LikedMusicViewModel?
     @State private var libraryViewModel: LibraryViewModel?
 
@@ -80,6 +85,30 @@ struct MainWindow: View {
         .sheet(isPresented: self.$showLoginSheet) {
             LoginSheet()
         }
+        .overlay {
+            // Command bar overlay - dismisses when clicking outside
+            if self.showCommandBarSheet, let client = ytMusicClient {
+                ZStack {
+                    // Background tap area to dismiss
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            self.showCommandBarSheet = false
+                        }
+
+                    // Command bar centered
+                    CommandBarView(client: client, isPresented: self.$showCommandBarSheet)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+                .animation(.easeInOut(duration: 0.15), value: self.showCommandBarSheet)
+            }
+        }
+        .onChange(of: self.showCommandBar.wrappedValue) { _, newValue in
+            if newValue {
+                self.showCommandBarSheet = true
+                self.showCommandBar.wrappedValue = false
+            }
+        }
         .onChange(of: self.authService.state) { oldState, newState in
             self.handleAuthStateChange(oldState: oldState, newState: newState)
         }
@@ -120,6 +149,21 @@ struct MainWindow: View {
             .animation(.easeInOut(duration: 0.2), value: self.playerService.showLyrics)
             .animation(.easeInOut(duration: 0.2), value: self.playerService.showQueue)
             .frame(minWidth: 900, minHeight: 600)
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        self.showCommandBarSheet = true
+                    } label: {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white)
+                    }
+                    .keyboardShortcut("k", modifiers: .command)
+                    .help("Ask AI (⌘K)")
+                    .accessibilityIdentifier(AccessibilityID.MainWindow.aiButton)
+                    .requiresIntelligence()
+                }
+            }
         } else {
             self.loadingView
         }
@@ -149,33 +193,38 @@ struct MainWindow: View {
     @ViewBuilder
     private func detailView(for item: NavigationItem?, client _: any YTMusicClientProtocol) -> some View {
         Group {
-            switch item {
-            case .home:
-                if let vm = homeViewModel {
-                    HomeView(viewModel: vm)
-                }
-            case .explore:
-                if let vm = exploreViewModel {
-                    ExploreView(viewModel: vm)
-                }
-            case .search:
-                if let vm = searchViewModel {
-                    SearchView(viewModel: vm)
-                }
-            case .likedMusic:
-                if let vm = likedMusicViewModel {
-                    LikedMusicView(viewModel: vm)
-                }
-            case .library:
-                if let vm = libraryViewModel {
-                    LibraryView(viewModel: vm)
-                }
-            case .none:
+            if let item {
+                self.viewForNavigationItem(item)
+            } else {
                 Text("Select an item from the sidebar")
                     .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Returns the view for a specific navigation item.
+    @ViewBuilder
+    // swiftlint:disable:next cyclomatic_complexity
+    private func viewForNavigationItem(_ item: NavigationItem) -> some View {
+        switch item {
+        case .home:
+            if let vm = homeViewModel { HomeView(viewModel: vm) }
+        case .explore:
+            if let vm = exploreViewModel { ExploreView(viewModel: vm) }
+        case .search:
+            if let vm = searchViewModel { SearchView(viewModel: vm) }
+        case .charts:
+            if let vm = chartsViewModel { ChartsView(viewModel: vm) }
+        case .moodsAndGenres:
+            if let vm = moodsAndGenresViewModel { MoodsAndGenresView(viewModel: vm) }
+        case .newReleases:
+            if let vm = newReleasesViewModel { NewReleasesView(viewModel: vm) }
+        case .likedMusic:
+            if let vm = likedMusicViewModel { LikedMusicView(viewModel: vm) }
+        case .library:
+            if let vm = libraryViewModel { LibraryView(viewModel: vm) }
+        }
     }
 
     private var loadingView: some View {
@@ -217,6 +266,9 @@ struct MainWindow: View {
         self.homeViewModel = HomeViewModel(client: client)
         self.exploreViewModel = ExploreViewModel(client: client)
         self.searchViewModel = SearchViewModel(client: client)
+        self.chartsViewModel = ChartsViewModel(client: client)
+        self.moodsAndGenresViewModel = MoodsAndGenresViewModel(client: client)
+        self.newReleasesViewModel = NewReleasesViewModel(client: client)
         self.likedMusicViewModel = LikedMusicViewModel(client: client)
         self.libraryViewModel = LibraryViewModel(client: client)
 
@@ -256,6 +308,9 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     case home = "Home"
     case explore = "Explore"
     case search = "Search"
+    case charts = "Charts"
+    case moodsAndGenres = "Moods & Genres"
+    case newReleases = "New Releases"
     case likedMusic = "Liked Music"
     case library = "Library"
 
@@ -269,6 +324,12 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
             "globe"
         case .search:
             "magnifyingglass"
+        case .charts:
+            "chart.line.uptrend.xyaxis"
+        case .moodsAndGenres:
+            "theatermask.and.paintbrush"
+        case .newReleases:
+            "sparkles"
         case .likedMusic:
             "heart.fill"
         case .library:

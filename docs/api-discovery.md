@@ -2,7 +2,7 @@
 
 > **Complete documentation of YouTube Music API endpoints for Kaset development.**
 >
-> This document catalogs all known YouTube Music API endpoints, their authentication requirements, implementation status, and usage patterns. Use the [APIExplorer](../Core/Services/API/APIExplorer.swift) tool for live endpoint testing.
+> This document catalogs all known YouTube Music API endpoints, their authentication requirements, implementation status, and usage patterns. Use the standalone [API Explorer](../Tools/api-explorer.swift) tool for live endpoint testing.
 
 ## Table of Contents
 
@@ -14,6 +14,7 @@
 - [Action Endpoints](#action-endpoints)
   - [Implemented](#implemented-action-endpoints)
   - [Available (Not Implemented)](#available-action-endpoints)
+- [Undocumented Endpoints](#undocumented-endpoints)
 - [Request Patterns](#request-patterns)
 - [Response Parsing](#response-parsing)
 - [Implementation Priorities](#implementation-priorities)
@@ -475,6 +476,52 @@ try await request("playlist/create", body: body)
 
 ---
 
+## Undocumented Endpoints
+
+These endpoints were discovered through API exploration (2024-12-22) but are not part of the documented API surface. Some may be useful for app functionality.
+
+### Potentially Useful Undocumented Endpoints
+
+| Endpoint | Type | Auth | Parameters | Description |
+|----------|------|------|------------|-------------|
+| `FEmusic_radio_builder` | Browse | 🌐 | - | Radio station builder UI data (form fields, artist selection) |
+| `FEmusic_liked_videos` | Browse | 🔐 | - | User's liked videos (alternative to `FEmusic_liked_videos`) |
+
+### Infrastructure/Internal Endpoints
+
+These endpoints exist but are primarily for YouTube's internal use:
+
+| Endpoint | Type | Auth | Parameters | Notes |
+|----------|------|------|------------|-------|
+| `account/account_menu` | Action | 🌐/🔐 | `{}` | Returns account menu structure (settings, premium promo) |
+| `reel/reel_item_watch` | Action | 🌐 | `{}` | Returns status tracking params (YouTube Shorts related) |
+| `log_event` | Action | 🌐 | `{}` | Analytics/telemetry logging endpoint |
+| `att/get` | Action | 🌐 | `{}` | Anti-bot/botguard challenge data |
+| `FEmusic_listening_review` | Browse | 🌐 | - | Returns only responseContext (Year in Review?) |
+
+### Endpoints Requiring Parameters
+
+These endpoints exist but return HTTP 400 without proper parameters:
+
+| Endpoint | Type | Auth | Status | Notes |
+|----------|------|------|--------|-------|
+| `comment/create_comment` | Action | 🔐 | 400 | Needs `videoId`, `commentText` |
+| `comment/perform_comment_action` | Action | 🔐 | 400 | Needs action params |
+| `share/get_share_panel` | Action | 🌐 | 400 | Needs `videoId` |
+| `get_transcript` | Action | 🌐 | 400 | Needs `videoId`, `params` |
+| `live_chat/send_message` | Action | 🔐 | 400 | Needs chat params |
+| `notification/get_unseen_count` | Action | 🔐 | 400 | Needs user context |
+
+### Endpoints Requiring Authentication
+
+| Endpoint | Type | Status | Notes |
+|----------|------|--------|-------|
+| `playlist/delete` | Action | 401 | Requires SAPISIDHASH |
+| `flag/get_form` | Action | 401 | Content flagging (needs auth) |
+| `notification/modify_channel_preference` | Action | 401 | Notification settings |
+
+---
+
 ## Request Patterns
 
 ### Standard Request Structure
@@ -584,58 +631,63 @@ if let watchEndpoint = navEndpoint["watchEndpoint"] as? [String: Any],
 
 ## Using the API Explorer
 
-The [APIExplorer](../Core/Services/API/APIExplorer.swift) tool provides structured exploration of API endpoints.
+The standalone [api-explorer.swift](../Tools/api-explorer.swift) tool provides comprehensive exploration of both public and authenticated API endpoints.
+
+### Setup
+
+```bash
+# Make executable (one time)
+chmod +x Tools/api-explorer.swift
+```
 
 ### Basic Usage
 
-```swift
-// Create explorer instance
-let explorer = APIExplorer(webKitManager: .shared)
+```bash
+# Check authentication status
+./Tools/api-explorer.swift auth
 
-// Explore a browse endpoint
-let result = await explorer.exploreBrowseEndpoint("FEmusic_charts")
-DiagnosticsLogger.api.info("\(result.summary)")
-// Output: ✅ FEmusic_charts: 4 keys, 5 sections [musicCarouselShelfRenderer, gridRenderer]
+# List all known endpoints
+./Tools/api-explorer.swift list
 
-// Explore an action endpoint
-let actionResult = await explorer.exploreActionEndpoint("player", body: ["videoId": "dQw4w9WgXcQ"])
-DiagnosticsLogger.api.info("\(actionResult.summary)")
-// Output: ✅ player: 8 keys, ~42KB response
+# Explore a public browse endpoint
+./Tools/api-explorer.swift browse FEmusic_charts
+# Output: ✅ HTTP 200
+#         📋 Top-level keys (5): contents, frameworkUpdates, header...
+
+# Explore with verbose output (shows raw JSON)
+./Tools/api-explorer.swift browse FEmusic_home -v
+
+# Explore action endpoints
+./Tools/api-explorer.swift action search '{"query":"never gonna give you up"}'
+./Tools/api-explorer.swift action player '{"videoId":"dQw4w9WgXcQ"}'
 ```
 
-### Exploring All Endpoints
+### Authenticated Endpoints
 
-```swift
-// Explore all unimplemented browse endpoints
-let results = await explorer.exploreAllBrowseEndpoints(includeImplemented: false)
-for result in results {
-    DiagnosticsLogger.api.info("\(result.summary)")
-}
+For authenticated endpoints (🔐), sign in to the Kaset app first:
 
-// Generate markdown report
-let report = await explorer.generateEndpointReport()
-DiagnosticsLogger.api.info(report)
+```bash
+# Check if cookies are available
+./Tools/api-explorer.swift auth
+
+# If authenticated, explore library endpoints
+./Tools/api-explorer.swift browse FEmusic_liked_playlists
+./Tools/api-explorer.swift browse FEmusic_history
+./Tools/api-explorer.swift browse FEmusic_library_albums ggMGKgQIARAA
 ```
 
-### Endpoint Registry
+The tool reads cookies from `~/Library/Application Support/Kaset/cookies.dat`.
 
-The explorer maintains registries of all known endpoints:
+### Commands Reference
 
-```swift
-// Browse endpoints
-APIExplorer.browseEndpoints  // [EndpointConfig]
-
-// Action endpoints  
-APIExplorer.actionEndpoints  // [EndpointConfig]
-```
-
-Each `EndpointConfig` contains:
-- `id`: The endpoint identifier
-- `name`: Human-readable name
-- `description`: What it does
-- `requiresAuth`: Whether auth is needed
-- `isImplemented`: Current implementation status
-- `notes`: Additional context
+| Command | Description |
+|---------|-------------|
+| `browse <id> [params]` | Explore a browse endpoint |
+| `action <endpoint> <json>` | Explore an action endpoint |
+| `list` | List all known endpoints |
+| `auth` | Check authentication status |
+| `help` | Show help message |
+| `-v, --verbose` | Show raw JSON response |
 
 ---
 
@@ -654,8 +706,9 @@ Each `EndpointConfig` contains:
 
 | Date | Changes |
 |------|---------|
+| 2024-12-22 | Added Undocumented Endpoints section with discovered endpoints |
+| 2024-12-22 | Unified standalone API Explorer with full endpoint coverage |
 | 2024-12-21 | Initial comprehensive documentation |
-| 2024-12-21 | Added APIExplorer tool documentation |
 | 2024-12-21 | Verified Player and Queue endpoints with detailed response structures |
 | 2024-12-21 | Confirmed Library Albums/Artists/Songs require auth + params |
 | 2024-12-21 | Documented playlist management auth requirements |
