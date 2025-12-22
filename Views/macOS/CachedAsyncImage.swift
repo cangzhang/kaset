@@ -35,8 +35,10 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     }
 }
 
+// MARK: - SizedProgressView
+
 /// A simple ProgressView wrapper with proper sizing to avoid AppKit constraint warnings.
-private struct SizedProgressView: View {
+struct SizedProgressView: View {
     var body: some View {
         ProgressView()
             .controlSize(.regular)
