@@ -122,26 +122,31 @@ extension View {
 // MARK: - PulseModifier
 
 /// A view modifier that applies a pulsing scale animation.
+/// Uses TimelineView for smooth, stutter-free continuous animation.
 @available(macOS 26.0, *)
 struct PulseModifier: ViewModifier {
     var minScale: CGFloat = 0.97
     var maxScale: CGFloat = 1.0
     var duration: Double = 1.0
 
-    @State private var isPulsing = false
+    private var shouldAnimate: Bool {
+        !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
 
     func body(content: Content) -> some View {
-        content
-            .scaleEffect(self.isPulsing ? self.maxScale : self.minScale)
-            .onAppear {
-                guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
-                withAnimation(
-                    .easeInOut(duration: self.duration)
-                        .repeatForever(autoreverses: true)
-                ) {
-                    self.isPulsing = true
-                }
+        if self.shouldAnimate {
+            TimelineView(.animation) { timeline in
+                let elapsed = timeline.date.timeIntervalSinceReferenceDate
+                let phase = elapsed.truncatingRemainder(dividingBy: self.duration * 2)
+                let progress = phase / (self.duration * 2)
+                // Smooth sinusoidal oscillation between minScale and maxScale
+                let scale = self.minScale + (self.maxScale - self.minScale) * (0.5 + 0.5 * sin(progress * 2 * .pi))
+                content
+                    .scaleEffect(scale)
             }
+        } else {
+            content
+        }
     }
 }
 

@@ -17,6 +17,10 @@
 //    auth                          - Check authentication status
 //    help                          - Show this help message
 //
+//  Options:
+//    -v, --verbose                 - Show full raw JSON response (not truncated)
+//    -o, --output <file>           - Save raw JSON response to a file
+//
 //  Examples:
 //    ./Tools/api-explorer.swift browse FEmusic_home
 //    ./Tools/api-explorer.swift browse FEmusic_charts
@@ -290,7 +294,7 @@ let authRequiredEndpoints = Set([
     "FEmusic_library_privately_owned_artists",
 ])
 
-func exploreBrowse(_ browseId: String, params: String? = nil, verbose: Bool = false) async {
+func exploreBrowse(_ browseId: String, params: String? = nil, verbose: Bool = false, outputFile: String? = nil) async {
     let needsAuth = authRequiredEndpoints.contains(browseId)
     let authIcon = needsAuth ? "🔐" : "🌐"
 
@@ -327,12 +331,15 @@ func exploreBrowse(_ browseId: String, params: String? = nil, verbose: Bool = fa
             if let prettyData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted),
                let prettyString = String(data: prettyData, encoding: .utf8)
             {
-                if prettyString.count > 5000 {
-                    print(String(prettyString.prefix(5000)))
-                    print("\n... (truncated, \(prettyString.count) total characters)")
-                } else {
-                    print(prettyString)
-                }
+                print(prettyString)
+            }
+        }
+
+        if let outputFile {
+            if let prettyData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted) {
+                let url = URL(fileURLWithPath: outputFile)
+                try prettyData.write(to: url)
+                print("\n💾 Saved to: \(outputFile)")
             }
         }
     } catch {
@@ -357,7 +364,7 @@ let authRequiredActions = Set([
     "stats/watchtime",
 ])
 
-func exploreAction(_ endpoint: String, bodyJson: String, verbose: Bool = false) async {
+func exploreAction(_ endpoint: String, bodyJson: String, verbose: Bool = false, outputFile: String? = nil) async {
     let needsAuth = authRequiredActions.contains(endpoint)
     let authIcon = needsAuth ? "🔐" : "🌐"
 
@@ -393,12 +400,15 @@ func exploreAction(_ endpoint: String, bodyJson: String, verbose: Bool = false) 
             if let prettyData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted),
                let prettyString = String(data: prettyData, encoding: .utf8)
             {
-                if prettyString.count > 5000 {
-                    print(String(prettyString.prefix(5000)))
-                    print("\n... (truncated, \(prettyString.count) total characters)")
-                } else {
-                    print(prettyString)
-                }
+                print(prettyString)
+            }
+        }
+
+        if let outputFile {
+            if let prettyData = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted) {
+                let url = URL(fileURLWithPath: outputFile)
+                try prettyData.write(to: url)
+                print("\n💾 Saved to: \(outputFile)")
             }
         }
     } catch {
@@ -624,7 +634,8 @@ func showHelp() {
       help                           Show this help message
 
     Options:
-      -v, --verbose                  Show detailed/raw response
+      -v, --verbose                  Show full raw JSON response (not truncated)
+      -o, --output <file>            Save raw JSON response to a file
 
     Examples:
       # Explore public endpoints
@@ -653,9 +664,35 @@ func showHelp() {
 // MARK: - Main Entry Point
 
 func runMain() async {
-    let args = CommandLine.arguments.dropFirst()
+    let args = Array(CommandLine.arguments.dropFirst())
     let verbose = args.contains("-v") || args.contains("--verbose")
-    let filteredArgs = args.filter { $0 != "-v" && $0 != "--verbose" }
+
+    // Parse output file option
+    var outputFile: String?
+    for (index, arg) in args.enumerated() {
+        if (arg == "-o" || arg == "--output"), index + 1 < args.count {
+            outputFile = args[index + 1]
+            break
+        }
+    }
+
+    // Filter out option flags and their values
+    var filteredArgs: [String] = []
+    var skipNext = false
+    for arg in args {
+        if skipNext {
+            skipNext = false
+            continue
+        }
+        if arg == "-v" || arg == "--verbose" {
+            continue
+        }
+        if arg == "-o" || arg == "--output" {
+            skipNext = true
+            continue
+        }
+        filteredArgs.append(arg)
+    }
 
     guard let command = filteredArgs.first else {
         showHelp()
@@ -668,10 +705,9 @@ func runMain() async {
             print("❌ Usage: browse <browseId> [params]")
             return
         }
-        let browseId = filteredArgs[filteredArgs.index(after: filteredArgs.startIndex)]
-        let params: String? = filteredArgs.count >= 3 ?
-            filteredArgs[filteredArgs.index(filteredArgs.startIndex, offsetBy: 2)] : nil
-        await exploreBrowse(browseId, params: params, verbose: verbose)
+        let browseId = filteredArgs[1]
+        let params: String? = filteredArgs.count >= 3 ? filteredArgs[2] : nil
+        await exploreBrowse(browseId, params: params, verbose: verbose, outputFile: outputFile)
 
     case "action":
         guard filteredArgs.count >= 3 else {
@@ -679,9 +715,9 @@ func runMain() async {
             print("   Example: action search '{\"query\":\"hello\"}'")
             return
         }
-        let endpoint = filteredArgs[filteredArgs.index(after: filteredArgs.startIndex)]
-        let bodyJson = filteredArgs[filteredArgs.index(filteredArgs.startIndex, offsetBy: 2)]
-        await exploreAction(endpoint, bodyJson: bodyJson, verbose: verbose)
+        let endpoint = filteredArgs[1]
+        let bodyJson = filteredArgs[2]
+        await exploreAction(endpoint, bodyJson: bodyJson, verbose: verbose, outputFile: outputFile)
 
     case "list":
         listEndpoints()

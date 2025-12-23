@@ -260,9 +260,39 @@ Action endpoints perform operations or fetch specific data.
 let body = ["query": "never gonna give you up"]
 ```
 
-**Response**: Mixed results with songs, albums, artists, playlists in `musicShelfRenderer` sections.
+**Response Structure**:
+- `musicCardShelfRenderer` — **Top Result** section (single prominent result: song, album, artist, or playlist)
+- `musicShelfRenderer` — Regular results (mixed songs, albums, artists, playlists)
 
-**Parser**: `SearchResponseParser`
+> ⚠️ **Important**: The Top Result (most relevant match) is returned in `musicCardShelfRenderer`, not `musicShelfRenderer`. This is often the artist/album the user is looking for. Always parse both renderer types.
+
+**Top Result Example** (searching "manifest"):
+```json
+{
+  "musicCardShelfRenderer": {
+    "title": {
+      "runs": [{
+        "text": "manifest",
+        "navigationEndpoint": {
+          "browseEndpoint": {
+            "browseId": "UCavTTSUSD6aYPeF-F3ND9Yg",
+            "browseEndpointContextSupportedConfigs": {
+              "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+              }
+            }
+          }
+        }
+      }]
+    },
+    "subtitle": { "runs": [{ "text": "Artist • 19.1M monthly audience" }] },
+    "thumbnail": { ... },
+    "contents": [ /* related songs/albums */ ]
+  }
+}
+```
+
+**Parser**: `SearchResponseParser` (handles both `musicCardShelfRenderer` and `musicShelfRenderer`)
 
 ---
 
@@ -576,8 +606,9 @@ let more = try await request("browse", body: body)
 |----------|---------|
 | `musicCarouselShelfRenderer` | Horizontal scrolling shelf |
 | `musicImmersiveCarouselShelfRenderer` | Hero carousel |
+| `musicCardShelfRenderer` | **Top Result** in search (single prominent item with related content) |
 | `gridRenderer` | Grid of items |
-| `musicShelfRenderer` | Vertical list (search results) |
+| `musicShelfRenderer` | Vertical list (search results, artist songs) |
 | `musicTwoRowItemRenderer` | Album/playlist card |
 | `musicResponsiveListItemRenderer` | Song row |
 | `playlistPanelVideoRenderer` | Queue/playlist item |
@@ -654,8 +685,11 @@ chmod +x Tools/api-explorer.swift
 # Output: ✅ HTTP 200
 #         📋 Top-level keys (5): contents, frameworkUpdates, header...
 
-# Explore with verbose output (shows raw JSON)
+# Explore with verbose output (shows full raw JSON, no truncation)
 ./Tools/api-explorer.swift browse FEmusic_home -v
+
+# Save raw JSON to a file for analysis
+./Tools/api-explorer.swift action search '{"query":"manifest"}' -o /tmp/search.json
 
 # Explore action endpoints
 ./Tools/api-explorer.swift action search '{"query":"never gonna give you up"}'

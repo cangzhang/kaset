@@ -28,6 +28,9 @@ struct MainWindow: View {
     @State private var likedMusicViewModel: LikedMusicViewModel?
     @State private var libraryViewModel: LibraryViewModel?
 
+    /// Column visibility state for NavigationSplitView - persisted to fix restoration from dock.
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+
     /// Access to the app delegate for persistent WebView.
     private var appDelegate: AppDelegate? {
         NSApplication.shared.delegate as? AppDelegate
@@ -136,12 +139,18 @@ struct MainWindow: View {
         if let client = ytMusicClient {
             HStack(spacing: 0) {
                 // Main navigation content
-                NavigationSplitView {
+                NavigationSplitView(columnVisibility: self.$columnVisibility) {
                     Sidebar(selection: self.$navigationSelection)
                 } detail: {
                     self.detailView(for: self.navigationSelection, client: client)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+                    // Ensure sidebar is visible when window becomes key (e.g., restored from dock)
+                    if self.columnVisibility != .all {
+                        self.columnVisibility = .all
+                    }
+                }
 
                 // Right sidebar - either lyrics or queue (mutually exclusive)
                 self.rightSidebarView(client: client)

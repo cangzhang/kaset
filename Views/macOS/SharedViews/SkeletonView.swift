@@ -4,6 +4,7 @@ import SwiftUI
 
 /// A skeleton loading placeholder with shimmer animation.
 /// Use this to indicate content is loading while maintaining layout structure.
+/// Uses TimelineView for smooth, stutter-free continuous animation.
 struct SkeletonView: View {
     /// The shape of the skeleton element.
     enum Shape {
@@ -14,55 +15,69 @@ struct SkeletonView: View {
 
     let shape: Shape
 
-    @State private var isAnimating = false
+    private let animationDuration: Double = 1.5
 
-    /// Gradient for shimmer effect.
-    private var shimmerGradient: LinearGradient {
-        LinearGradient(
+    private var shouldAnimate: Bool {
+        !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
+
+    /// Gradient for shimmer effect based on animation progress.
+    private func shimmerGradient(progress: Double) -> LinearGradient {
+        // Progress goes from 0 to 1, we map it to gradient positions
+        let startX = -1.0 + progress * 3.0
+        let endX = startX + 1.0
+        return LinearGradient(
             colors: [
                 .primary.opacity(0.08),
-                .primary.opacity(0.15),
+                .primary.opacity(0.18),
                 .primary.opacity(0.08),
             ],
-            startPoint: self.isAnimating ? .trailing : .leading,
-            endPoint: self.isAnimating ? .init(x: 2, y: 0) : .trailing
+            startPoint: UnitPoint(x: startX, y: 0),
+            endPoint: UnitPoint(x: endX, y: 0)
         )
     }
 
+    /// Static gradient for reduced motion.
+    private var staticGradient: some ShapeStyle {
+        Color.primary.opacity(0.1)
+    }
+
     var body: some View {
-        Group {
-            switch self.shape {
-            case let .rectangle(cornerRadius):
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(.quaternary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(self.shimmerGradient)
-                    )
-            case .circle:
-                Circle()
-                    .fill(.quaternary)
-                    .overlay(
-                        Circle()
-                            .fill(self.shimmerGradient)
-                    )
-            case .capsule:
-                Capsule()
-                    .fill(.quaternary)
-                    .overlay(
-                        Capsule()
-                            .fill(self.shimmerGradient)
-                    )
+        if self.shouldAnimate {
+            TimelineView(.animation) { timeline in
+                let elapsed = timeline.date.timeIntervalSinceReferenceDate
+                let progress = elapsed.truncatingRemainder(dividingBy: self.animationDuration) / self.animationDuration
+                self.shapeView(gradient: self.shimmerGradient(progress: progress))
             }
+        } else {
+            self.shapeView(gradient: self.staticGradient)
         }
-        .onAppear {
-            guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
-            withAnimation(
-                .easeInOut(duration: 1.5)
-                    .repeatForever(autoreverses: false)
-            ) {
-                self.isAnimating = true
-            }
+    }
+
+    @ViewBuilder
+    private func shapeView(gradient: some ShapeStyle) -> some View {
+        switch self.shape {
+        case let .rectangle(cornerRadius):
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(.quaternary)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .fill(gradient)
+                )
+        case .circle:
+            Circle()
+                .fill(.quaternary)
+                .overlay(
+                    Circle()
+                        .fill(gradient)
+                )
+        case .capsule:
+            Capsule()
+                .fill(.quaternary)
+                .overlay(
+                    Capsule()
+                        .fill(gradient)
+                )
         }
     }
 }
