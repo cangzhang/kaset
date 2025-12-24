@@ -401,20 +401,15 @@ xcodebuild test -scheme Kaset -destination 'platform=macOS' \
 xcodebuild test -scheme Kaset -destination 'platform=macOS' \
   -only-testing:KasetTests/MusicIntentIntegrationTests
 
-# Run all unit tests EXCEPT integration tests
+# Run all unit tests (integration tests auto-skip if AI unavailable)
 xcodebuild test -scheme Kaset -destination 'platform=macOS' \
-  -only-testing:KasetTests \
-  -skip-testing:KasetTests/MusicIntentIntegrationTests
-
-# Skip by tag
-xcodebuild test -scheme Kaset -destination 'platform=macOS' \
-  -only-testing:KasetTests -skip-test-tag integration
+  -only-testing:KasetTests
 ```
 
 #### Test Characteristics
 
 - **Tagged**: `.integration` and `.slow` for easy filtering
-- **Skip-friendly**: Uses `throw AIUnavailableError()` when AI unavailable
+- **Auto-skip**: Uses `.enabled(if:)` to skip entire suite when AI unavailable
 - **Parameterized**: Efficient coverage with Swift Testing's `arguments:`
 - **Retry-enabled**: Up to 3 attempts per test to handle LLM non-determinism
 - **Relaxed validation**: Checks multiple fields to accommodate LLM output variance

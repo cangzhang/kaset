@@ -26,16 +26,10 @@ import Testing
 ///   -only-testing:KasetTests/MusicIntentIntegrationTests
 /// ```
 ///
-/// Run all unit tests EXCEPT integration tests:
+/// Run all unit tests (integration tests auto-skip if AI unavailable):
 /// ```bash
 /// xcodebuild test -scheme Kaset -destination 'platform=macOS' \
-///   -only-testing:KasetTests -skip-testing:KasetTests/MusicIntentIntegrationTests
-/// ```
-///
-/// Skip by tag (recommended for CI):
-/// ```bash
-/// xcodebuild test -scheme Kaset -destination 'platform=macOS' \
-///   -only-testing:KasetTests -skip-test-tag integration
+///   -only-testing:KasetTests
 /// ```
 @Suite(
     "MusicIntent Integration",
