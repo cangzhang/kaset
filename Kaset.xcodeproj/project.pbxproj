@@ -104,7 +104,8 @@
 		E50000010000000000000092 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000092 /* OnboardingView.swift */; };
 		E50000010000000000000093 /* AccentBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000093 /* AccentBackground.swift */; };
 		E50000010000000000000101 /* WebKitManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000101 /* WebKitManagerTests.swift */; };
-		E50000010000000000000600 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000600 /* Tags.swift */; };
+		15F144163C7B4864A81CF001 /* Tags.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F144163C7B4864A81CF002 /* Tags.swift */; };
+		15F144163C7B4864A81CF004 /* TestStringConvertible.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15F144163C7B4864A81CF005 /* TestStringConvertible.swift */; };
 		E50000010000000000000102 /* AuthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000102 /* AuthServiceTests.swift */; };
 		E50000010000000000000103 /* YTMusicClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000103 /* YTMusicClientTests.swift */; };
 		E50000010000000000000104 /* PlayerServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E50000020000000000000104 /* PlayerServiceTests.swift */; };
@@ -270,7 +271,8 @@
 		E50000020000000000000093 /* AccentBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccentBackground.swift; sourceTree = "<group>"; };
 		E50000020000000000000099 /* KasetTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KasetTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E50000020000000000000101 /* WebKitManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebKitManagerTests.swift; sourceTree = "<group>"; };
-		E50000020000000000000600 /* Tags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tags.swift; sourceTree = "<group>"; };
+		15F144163C7B4864A81CF002 /* Tags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tags.swift; sourceTree = "<group>"; };
+		15F144163C7B4864A81CF005 /* TestStringConvertible.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestStringConvertible.swift; sourceTree = "<group>"; };
 		E50000020000000000000102 /* AuthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthServiceTests.swift; sourceTree = "<group>"; };
 		E50000020000000000000103 /* YTMusicClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YTMusicClientTests.swift; sourceTree = "<group>"; };
 		E50000020000000000000104 /* PlayerServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerServiceTests.swift; sourceTree = "<group>"; };
@@ -697,7 +699,7 @@
 			isa = PBXGroup;
 			children = (
 				E50000020000000000000101 /* WebKitManagerTests.swift */,
-				E50000060000000000000054 /* SwiftTestingHelpers */,
+				15F144163C7B4864A81CF003 /* SwiftTestingHelpers */,
 				E50000020000000000000102 /* AuthServiceTests.swift */,
 				E50000020000000000000103 /* YTMusicClientTests.swift */,
 				E50000020000000000000104 /* PlayerServiceTests.swift */,
@@ -726,10 +728,11 @@
 			path = KasetTests;
 			sourceTree = "<group>";
 		};
-		E50000060000000000000054 /* SwiftTestingHelpers */ = {
+		15F144163C7B4864A81CF003 /* SwiftTestingHelpers */ = {
 			isa = PBXGroup;
 			children = (
-				E50000020000000000000600 /* Tags.swift */,
+				15F144163C7B4864A81CF002 /* Tags.swift */,
+				15F144163C7B4864A81CF005 /* TestStringConvertible.swift */,
 			);
 			path = SwiftTestingHelpers;
 			sourceTree = "<group>";
@@ -1002,7 +1005,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E50000010000000000000101 /* WebKitManagerTests.swift in Sources */,
-				E50000010000000000000600 /* Tags.swift in Sources */,
+				15F144163C7B4864A81CF001 /* Tags.swift in Sources */,
+				15F144163C7B4864A81CF004 /* TestStringConvertible.swift in Sources */,
 				E50000010000000000000102 /* AuthServiceTests.swift in Sources */,
 				E50000010000000000000103 /* YTMusicClientTests.swift in Sources */,
 				E50000010000000000000104 /* PlayerServiceTests.swift in Sources */,

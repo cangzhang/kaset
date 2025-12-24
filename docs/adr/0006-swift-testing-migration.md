@@ -571,6 +571,122 @@ swift test --filter .api
 
 ---
 
+## Advanced Swift Testing Patterns
+
+### Tags for Test Categorization
+
+All test suites now use tags for categorization. Tags enable running subsets of tests.
+
+**Applied tags:**
+
+| Tag | Suites |
+|-----|--------|
+| `.model` | `ModelTests`, `LikeStatusTests`, `ExtensionsTests`, `HomeSectionTests`, `YTMusicErrorTests`, `SearchResponseTests`, `ContentSourceTests` |
+| `.parser` | `HomeResponseParserTests`, `SearchResponseParserTests`, `PlaylistParserTests`, `ParsingHelpersTests`, `SearchSuggestionsParserTests` |
+| `.service` | `AuthServiceTests`, `WebKitManagerTests`, `ErrorPresenterTests`, `APICacheTests`, `PlayerServiceTests` |
+| `.viewModel` | `HomeViewModelTests`, `SearchViewModelTests`, `LibraryViewModelTests`, `ExploreViewModelTests`, `ArtistDetailTests` |
+| `.api` | `YTMusicClientTests`, `RetryPolicyTests`, `MusicIntentTests`, `MusicQueryTests`, `AISessionTypeTests`, `QueueIntentTests` |
+
+**Example usage:**
+
+```swift
+@Suite("HomeViewModel", .serialized, .tags(.viewModel), .timeLimit(.minutes(1)))
+@MainActor
+struct HomeViewModelTests { ... }
+```
+
+**CLI filtering:**
+
+```bash
+# Run only parser tests
+swift test --filter .parser
+
+# Run model and service tests
+swift test --filter .model --filter .service
+
+# Exclude slow tests
+swift test --skip .slow
+```
+
+### Time Limits for Async Tests
+
+All ViewModel test suites now have `.timeLimit(.minutes(1))` to prevent hung tests from stalling CI.
+
+```swift
+@Suite("HomeViewModel", .serialized, .tags(.viewModel), .timeLimit(.minutes(1)))
+```
+
+The more restrictive (shorter) duration wins when applied at both suite and test level.
+
+### CustomTestStringConvertible for Readable Failures
+
+Core models conform to `CustomTestStringConvertible` for better test failure messages.
+
+**File:** `Tests/KasetTests/SwiftTestingHelpers/TestStringConvertible.swift`
+
+**Before (default output):**
+```
+#expect(song == expectedSong)
+      | Song(id: "abc123", title: "Never Gonna...", artists: [...], ...)
+```
+
+**After (with CustomTestStringConvertible):**
+```
+#expect(song == expectedSong)
+      | "Never Gonna Give You Up" by Rick Astley (3:33)
+```
+
+**Conforming types:**
+- `Song` → `"Title" by Artist (duration)`
+- `Playlist` → `"Title" [playlist] (N songs)`
+- `Album` → `"Title" by Artist (year)`
+- `Artist` → `Artist: "Name"`
+- `PlaylistDetail` → `"Title" [type] (N tracks)`
+- `HomeSectionItem` → `Type: description`
+- `SearchResultItem` → `SearchResult[Type]: description`
+
+### Future Patterns (Not Yet Implemented)
+
+#### `.bug()` Trait for Known Issues
+
+When writing tests for bug fixes, associate with issue tracker:
+
+```swift
+@Test("Parsing handles edge case", .bug("KASET-123", "https://github.com/sozercan/kaset/issues/123"))
+func parsingEdgeCase() { ... }
+```
+
+#### `withKnownIssue` for Expected Failures
+
+Use instead of `.disabled()` for known bugs. The test still runs, and if the bug gets fixed, the test fails (alerting you to remove it):
+
+```swift
+@Test("Known parsing issue")
+func knownParsingIssue() {
+    withKnownIssue("Thumbnail parsing broken for empty arrays") {
+        let result = parse(problematicData)
+        #expect(result.thumbnails.isEmpty == false)
+    }
+}
+```
+
+#### `confirmation()` for Event-Based Testing
+
+Use for testing delegate callbacks, notifications, or events:
+
+```swift
+@Test("Player notifies delegate on state change")
+func playerNotifiesDelegate() async {
+    await confirmation("delegate was called", expectedCount: 1) { confirm in
+        let delegate = MockPlayerDelegate { confirm() }
+        let player = PlayerService(delegate: delegate)
+        await player.play(videoId: "test")
+    }
+}
+```
+
+---
+
 ## Consequences
 
 ### Positive

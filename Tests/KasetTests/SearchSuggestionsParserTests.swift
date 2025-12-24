@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for SearchSuggestionsParser.
-@Suite
+@Suite("SearchSuggestionsParser", .tags(.parser))
 struct SearchSuggestionsParserTests {
     // MARK: - Empty Response Tests
 
@@ -25,7 +25,7 @@ struct SearchSuggestionsParserTests {
 
     @Test("Parse single suggestion")
     func parseSingleSuggestion() throws {
-        let data = makeSuggestionsResponse(queries: ["test query"])
+        let data = self.makeSuggestionsResponse(queries: ["test query"])
         let suggestions = SearchSuggestionsParser.parse(data)
 
         #expect(suggestions.count == 1)
@@ -34,7 +34,7 @@ struct SearchSuggestionsParserTests {
 
     @Test("Parse multiple suggestions")
     func parseMultipleSuggestions() {
-        let data = makeSuggestionsResponse(queries: [
+        let data = self.makeSuggestionsResponse(queries: [
             "taylor swift",
             "taylor swift anti hero",
             "taylor swift shake it off",

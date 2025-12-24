@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for WebKitManager.
-@Suite(.serialized)
+@Suite("WebKitManager", .serialized, .tags(.service))
 @MainActor
 struct WebKitManagerTests {
     var webKitManager: WebKitManager
@@ -19,14 +19,14 @@ struct WebKitManagerTests {
 
     @Test("Data store exists")
     func dataStoreExists() {
-        #expect(webKitManager.dataStore != nil)
+        #expect(self.webKitManager.dataStore != nil)
     }
 
     @Test("Create WebView configuration")
     func createWebViewConfiguration() {
-        let configuration = webKitManager.createWebViewConfiguration()
+        let configuration = self.webKitManager.createWebViewConfiguration()
         #expect(configuration != nil)
-        #expect(configuration.websiteDataStore === webKitManager.dataStore)
+        #expect(configuration.websiteDataStore === self.webKitManager.dataStore)
     }
 
     @Test("Origin constant")
@@ -50,7 +50,7 @@ struct WebKitManagerTests {
     func cookieHeaderForDomain() async {
         // May be nil if no cookies are set
         // Just verify it doesn't crash
-        _ = await webKitManager.cookieHeader(for: "youtube.com")
+        _ = await self.webKitManager.cookieHeader(for: "youtube.com")
     }
 
     @Test("Has auth cookies")

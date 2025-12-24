@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for the PlaylistParser.
-@Suite
+@Suite("PlaylistParser", .tags(.parser))
 struct PlaylistParserTests {
     // MARK: - Library Playlists
 
@@ -16,7 +16,7 @@ struct PlaylistParserTests {
 
     @Test("Parse library playlists from grid")
     func parseLibraryPlaylistsFromGrid() {
-        let data = makeLibraryResponseData(playlistCount: 3)
+        let data = self.makeLibraryResponseData(playlistCount: 3)
         let playlists = PlaylistParser.parseLibraryPlaylists(data)
         #expect(playlists.count == 3)
     }
@@ -25,7 +25,7 @@ struct PlaylistParserTests {
 
     @Test("Parse playlist detail with header")
     func parsePlaylistDetailWithMusicDetailHeader() {
-        let data = makePlaylistDetailData(
+        let data = self.makePlaylistDetailData(
             title: "My Playlist",
             description: "A great playlist",
             author: "Test User",
@@ -43,7 +43,7 @@ struct PlaylistParserTests {
 
     @Test("Parse playlist detail tracks")
     func parsePlaylistDetailWithTracks() {
-        let data = makePlaylistDetailData(
+        let data = self.makePlaylistDetailData(
             title: "Track Test",
             description: nil,
             author: nil,
@@ -72,14 +72,14 @@ struct PlaylistParserTests {
     @Test(
         "Album detection based on ID prefix",
         arguments: [
-            ("MPRE12345", true),   // Album prefix
-            ("VL12345", false),    // Playlist prefix
-            ("OLAK12345", true),   // Another album prefix
-            ("RDCLAK", false),     // Radio prefix
+            ("MPRE12345", true), // Album prefix
+            ("VL12345", false), // Playlist prefix
+            ("OLAK12345", true), // Another album prefix
+            ("RDCLAK", false), // Radio prefix
         ]
     )
     func isAlbumDetection(playlistId: String, expectedIsAlbum: Bool) {
-        let data = makePlaylistDetailData(title: "Test", description: nil, author: nil, trackCount: 1)
+        let data = self.makePlaylistDetailData(title: "Test", description: nil, author: nil, trackCount: 1)
         let detail = PlaylistParser.parsePlaylistDetail(data, playlistId: playlistId)
         #expect(detail.isAlbum == expectedIsAlbum)
     }

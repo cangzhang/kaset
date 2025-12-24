@@ -189,26 +189,66 @@ GlassEffectContainer(spacing: 0) {
 - `SearchView` (on VStack)
 - `PlaylistDetailView` (on Group)
 
+### Swift Testing (Preferred)
+
+> ✅ **Use Swift Testing for all new unit tests** — See [ADR-0006](docs/adr/0006-swift-testing-migration.md) for details.
+
+Swift Testing is 4x faster than XCTest and provides cleaner syntax. Use it for all new tests except:
+- **Performance tests** — Keep in XCTest (requires `measure {}`)
+- **UI tests** — Keep in XCTest (requires XCUIApplication)
+
+| XCTest | Swift Testing |
+|--------|---------------|
+| `import XCTest` | `import Testing` |
+| `class ... : XCTestCase` | `@Suite struct ...` |
+| `func testFoo()` | `@Test func foo()` |
+| `XCTAssertEqual(a, b)` | `#expect(a == b)` |
+| `XCTAssertTrue(x)` | `#expect(x)` |
+| `XCTAssertNil(x)` | `#expect(x == nil)` |
+| `XCTFail("msg")` | `Issue.record("msg")` |
+| `setUp()` / `tearDown()` | `init()` (ARC handles cleanup) |
+
+**Pattern for `@MainActor` tests:**
+
+```swift
+import Testing
+@testable import Kaset
+
+@Suite(.serialized)  // Required for @MainActor
+@MainActor
+struct MyServiceTests {
+    let service: MyService
+    let mockClient: MockYTMusicClient
+
+    init() {
+        mockClient = MockYTMusicClient()
+        service = MyService(client: mockClient)
+    }
+
+    @Test("Does something correctly")
+    func doesSomething() async {
+        await service.doSomething()
+        #expect(service.state == .done)
+    }
+}
+```
+
+**Parameterized tests** — Use for multiple input cases:
+
+```swift
+@Test("Status raw values", arguments: [
+    (LikeStatus.liked, "LIKE"),
+    (LikeStatus.disliked, "DISLIKE"),
+])
+func statusRawValues(status: LikeStatus, expected: String) {
+    #expect(status.rawValue == expected)
+}
+```
+
 ### Swift Concurrency
 
 - Mark `@Observable` classes with `@MainActor`
 - Never use `DispatchQueue` — use `async`/`await`, `MainActor`
-- For `@MainActor` test classes, don't call `super.setUp()` in async context:
-  ```swift
-  @MainActor
-  final class MyServiceTests: XCTestCase {
-      override func setUp() async throws {
-          // Do NOT call: try await super.setUp()
-          // Set up test fixtures here
-      }
-
-      override func tearDown() async throws {
-          // Clean up here
-          // Do NOT call: try await super.tearDown()
-      }
-  }
-  ```
-  **Why?** `XCTestCase` is not `Sendable`. Calling `super.setUp()` from a `@MainActor` async context sends `self` across actor boundaries, causing Swift 6 strict concurrency errors. XCTest's base implementations are no-ops, so skipping them is safe.
 
 ### WebKit Patterns
 

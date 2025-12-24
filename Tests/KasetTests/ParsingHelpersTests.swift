@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for the ParsingHelpers.
-@Suite
+@Suite("ParsingHelpers", .tags(.parser))
 struct ParsingHelpersTests {
     // MARK: - Chart Section Detection
 
@@ -209,8 +209,8 @@ struct ParsingHelpersTests {
     @Test(
         "Parse duration string to seconds",
         arguments: [
-            ("3:45", 225.0),      // 3 * 60 + 45
-            ("1:30:00", 5400.0),  // 1 * 3600 + 30 * 60
+            ("3:45", 225.0), // 3 * 60 + 45
+            ("1:30:00", 5400.0), // 1 * 3600 + 30 * 60
         ]
     )
     func parseDuration(input: String, expectedSeconds: TimeInterval) {

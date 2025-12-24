@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for SearchViewModel using mock client.
-@Suite(.serialized)
+@Suite("SearchViewModel", .serialized, .tags(.viewModel), .timeLimit(.minutes(1)))
 @MainActor
 struct SearchViewModelTests {
     var mockClient: MockYTMusicClient
@@ -16,44 +16,44 @@ struct SearchViewModelTests {
 
     @Test("Initial state is idle with empty query")
     func initialState() {
-        #expect(viewModel.loadingState == .idle)
-        #expect(viewModel.query.isEmpty)
-        #expect(viewModel.results.allItems.isEmpty)
-        #expect(viewModel.selectedFilter == .all)
+        #expect(self.viewModel.loadingState == .idle)
+        #expect(self.viewModel.query.isEmpty)
+        #expect(self.viewModel.results.allItems.isEmpty)
+        #expect(self.viewModel.selectedFilter == .all)
     }
 
     @Test("Query change clears results when empty")
     func queryChangeClearsResultsWhenEmpty() {
-        viewModel.query = "test"
-        viewModel.query = ""
+        self.viewModel.query = "test"
+        self.viewModel.query = ""
 
-        #expect(viewModel.loadingState == .idle)
-        #expect(viewModel.results.allItems.isEmpty)
+        #expect(self.viewModel.loadingState == .idle)
+        #expect(self.viewModel.results.allItems.isEmpty)
     }
 
     @Test("Search with empty query does not call API")
     func searchWithEmptyQueryDoesNotCallAPI() {
-        viewModel.query = ""
-        viewModel.search()
+        self.viewModel.query = ""
+        self.viewModel.search()
 
-        #expect(mockClient.searchCalled == false)
+        #expect(self.mockClient.searchCalled == false)
     }
 
     @Test("Clear resets state")
     func clearResetsState() {
-        viewModel.query = "test query"
-        viewModel.selectedFilter = .songs
+        self.viewModel.query = "test query"
+        self.viewModel.selectedFilter = .songs
 
-        viewModel.clear()
+        self.viewModel.clear()
 
-        #expect(viewModel.query.isEmpty)
-        #expect(viewModel.loadingState == .idle)
-        #expect(viewModel.results.allItems.isEmpty)
+        #expect(self.viewModel.query.isEmpty)
+        #expect(self.viewModel.loadingState == .idle)
+        #expect(self.viewModel.results.allItems.isEmpty)
     }
 
     @Test("Filtered items returns all when all selected")
     func filteredItemsReturnsAllWhenAllSelected() {
-        viewModel.selectedFilter = .all
+        self.viewModel.selectedFilter = .all
 
         let response = TestFixtures.makeSearchResponse(
             songCount: 2,

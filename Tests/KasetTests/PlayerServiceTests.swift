@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for PlayerService.
-@Suite(.serialized)
+@Suite("PlayerService", .serialized, .tags(.service))
 @MainActor
 struct PlayerServiceTests {
     var playerService: PlayerService
@@ -16,17 +16,17 @@ struct PlayerServiceTests {
 
     @Test("Initial state is idle")
     func initialState() {
-        #expect(playerService.state == .idle)
-        #expect(playerService.currentTrack == nil)
-        #expect(playerService.isPlaying == false)
-        #expect(playerService.progress == 0)
-        #expect(playerService.duration == 0)
-        #expect(playerService.volume == 1.0)
+        #expect(self.playerService.state == .idle)
+        #expect(self.playerService.currentTrack == nil)
+        #expect(self.playerService.isPlaying == false)
+        #expect(self.playerService.progress == 0)
+        #expect(self.playerService.duration == 0)
+        #expect(self.playerService.volume == 1.0)
     }
 
     @Test("isPlaying property")
     func isPlayingProperty() {
-        #expect(playerService.isPlaying == false)
+        #expect(self.playerService.isPlaying == false)
     }
 
     // MARK: - PlaybackState Tests
@@ -68,111 +68,111 @@ struct PlayerServiceTests {
 
     @Test("Queue initially empty")
     func queueInitiallyEmpty() {
-        #expect(playerService.queue.isEmpty)
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.isEmpty)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Update playback state to playing")
     func updatePlaybackState() {
-        playerService.updatePlaybackState(isPlaying: true, progress: 30.0, duration: 180.0)
+        self.playerService.updatePlaybackState(isPlaying: true, progress: 30.0, duration: 180.0)
 
-        #expect(playerService.state == .playing)
-        #expect(playerService.progress == 30.0)
-        #expect(playerService.duration == 180.0)
-        #expect(playerService.isPlaying == true)
+        #expect(self.playerService.state == .playing)
+        #expect(self.playerService.progress == 30.0)
+        #expect(self.playerService.duration == 180.0)
+        #expect(self.playerService.isPlaying == true)
     }
 
     @Test("Update playback state to paused")
     func updatePlaybackStatePaused() {
-        playerService.updatePlaybackState(isPlaying: true, progress: 30.0, duration: 180.0)
-        #expect(playerService.state == .playing)
+        self.playerService.updatePlaybackState(isPlaying: true, progress: 30.0, duration: 180.0)
+        #expect(self.playerService.state == .playing)
 
-        playerService.updatePlaybackState(isPlaying: false, progress: 30.0, duration: 180.0)
-        #expect(playerService.state == .paused)
-        #expect(playerService.isPlaying == false)
+        self.playerService.updatePlaybackState(isPlaying: false, progress: 30.0, duration: 180.0)
+        #expect(self.playerService.state == .paused)
+        #expect(self.playerService.isPlaying == false)
     }
 
     @Test("Update track metadata")
     func updateTrackMetadata() {
-        playerService.updateTrackMetadata(
+        self.playerService.updateTrackMetadata(
             title: "Test Song",
             artist: "Test Artist",
             thumbnailUrl: "https://example.com/thumb.jpg"
         )
 
-        #expect(playerService.currentTrack != nil)
-        #expect(playerService.currentTrack?.title == "Test Song")
-        #expect(playerService.currentTrack?.artistsDisplay == "Test Artist")
-        #expect(playerService.currentTrack?.thumbnailURL?.absoluteString == "https://example.com/thumb.jpg")
+        #expect(self.playerService.currentTrack != nil)
+        #expect(self.playerService.currentTrack?.title == "Test Song")
+        #expect(self.playerService.currentTrack?.artistsDisplay == "Test Artist")
+        #expect(self.playerService.currentTrack?.thumbnailURL?.absoluteString == "https://example.com/thumb.jpg")
     }
 
     @Test("Update track metadata with empty thumbnail")
     func updateTrackMetadataWithEmptyThumbnail() {
-        playerService.updateTrackMetadata(
+        self.playerService.updateTrackMetadata(
             title: "Test Song",
             artist: "Test Artist",
             thumbnailUrl: ""
         )
 
-        #expect(playerService.currentTrack != nil)
-        #expect(playerService.currentTrack?.title == "Test Song")
-        #expect(playerService.currentTrack?.thumbnailURL == nil)
+        #expect(self.playerService.currentTrack != nil)
+        #expect(self.playerService.currentTrack?.title == "Test Song")
+        #expect(self.playerService.currentTrack?.thumbnailURL == nil)
     }
 
     @Test("Confirm playback started")
     func confirmPlaybackStarted() {
-        playerService.showMiniPlayer = true
-        playerService.confirmPlaybackStarted()
+        self.playerService.showMiniPlayer = true
+        self.playerService.confirmPlaybackStarted()
 
-        #expect(playerService.showMiniPlayer == false)
-        #expect(playerService.state == .playing)
+        #expect(self.playerService.showMiniPlayer == false)
+        #expect(self.playerService.state == .playing)
     }
 
     @Test("Mini player dismissed")
     func miniPlayerDismissed() {
-        playerService.showMiniPlayer = true
-        playerService.miniPlayerDismissed()
+        self.playerService.showMiniPlayer = true
+        self.playerService.miniPlayerDismissed()
 
-        #expect(playerService.showMiniPlayer == false)
+        #expect(self.playerService.showMiniPlayer == false)
     }
 
     // MARK: - Shuffle and Repeat Mode Tests
 
     @Test("Toggle shuffle")
     func toggleShuffle() {
-        #expect(playerService.shuffleEnabled == false)
+        #expect(self.playerService.shuffleEnabled == false)
 
-        playerService.toggleShuffle()
-        #expect(playerService.shuffleEnabled == true)
+        self.playerService.toggleShuffle()
+        #expect(self.playerService.shuffleEnabled == true)
 
-        playerService.toggleShuffle()
-        #expect(playerService.shuffleEnabled == false)
+        self.playerService.toggleShuffle()
+        #expect(self.playerService.shuffleEnabled == false)
     }
 
     @Test("Cycle repeat mode")
     func cycleRepeatMode() {
-        #expect(playerService.repeatMode == .off)
+        #expect(self.playerService.repeatMode == .off)
 
-        playerService.cycleRepeatMode()
-        #expect(playerService.repeatMode == .all)
+        self.playerService.cycleRepeatMode()
+        #expect(self.playerService.repeatMode == .all)
 
-        playerService.cycleRepeatMode()
-        #expect(playerService.repeatMode == .one)
+        self.playerService.cycleRepeatMode()
+        #expect(self.playerService.repeatMode == .one)
 
-        playerService.cycleRepeatMode()
-        #expect(playerService.repeatMode == .off)
+        self.playerService.cycleRepeatMode()
+        #expect(self.playerService.repeatMode == .off)
     }
 
     // MARK: - Volume Tests
 
     @Test("Is muted initially false")
     func isMuted() {
-        #expect(playerService.isMuted == false)
+        #expect(self.playerService.isMuted == false)
     }
 
     @Test("Initial volume is 1.0")
     func initialVolume() {
-        #expect(playerService.volume == 1.0)
+        #expect(self.playerService.volume == 1.0)
     }
 
     // MARK: - Queue Tests
@@ -187,8 +187,8 @@ struct PlayerServiceTests {
 
         await playerService.playQueue(songs, startingAt: 0)
 
-        #expect(playerService.queue.count == 3)
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.count == 3)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Play queue starting at index")
@@ -201,7 +201,7 @@ struct PlayerServiceTests {
 
         await playerService.playQueue(songs, startingAt: 2)
 
-        #expect(playerService.currentIndex == 2)
+        #expect(self.playerService.currentIndex == 2)
     }
 
     @Test("Play queue with invalid index clamps to valid range")
@@ -212,95 +212,95 @@ struct PlayerServiceTests {
 
         await playerService.playQueue(songs, startingAt: 10)
 
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Play empty queue does nothing")
     func playQueueEmptyDoesNothing() async {
-        await playerService.playQueue([], startingAt: 0)
-        #expect(playerService.queue.isEmpty)
+        await self.playerService.playQueue([], startingAt: 0)
+        #expect(self.playerService.queue.isEmpty)
     }
 
     // MARK: - User Interaction Tests
 
     @Test("hasUserInteractedThisSession initially false")
     func hasUserInteractedThisSessionInitiallyFalse() {
-        #expect(playerService.hasUserInteractedThisSession == false)
+        #expect(self.playerService.hasUserInteractedThisSession == false)
     }
 
     @Test("confirmPlaybackStarted sets userInteracted")
     func confirmPlaybackStartedSetsUserInteracted() {
-        #expect(playerService.hasUserInteractedThisSession == false)
-        playerService.confirmPlaybackStarted()
-        #expect(playerService.hasUserInteractedThisSession == true)
+        #expect(self.playerService.hasUserInteractedThisSession == false)
+        self.playerService.confirmPlaybackStarted()
+        #expect(self.playerService.hasUserInteractedThisSession == true)
     }
 
     // MARK: - Pending Play Video Tests
 
     @Test("pendingPlayVideoId initially nil")
     func pendingPlayVideoIdInitiallyNil() {
-        #expect(playerService.pendingPlayVideoId == nil)
+        #expect(self.playerService.pendingPlayVideoId == nil)
     }
 
     // MARK: - Mini Player State Tests
 
     @Test("Mini player initially hidden")
     func miniPlayerInitiallyHidden() {
-        #expect(playerService.showMiniPlayer == false)
+        #expect(self.playerService.showMiniPlayer == false)
     }
 
     // MARK: - Queue/Lyrics Mutual Exclusivity Tests
 
     @Test("showQueue initially false")
     func showQueueInitiallyFalse() {
-        #expect(playerService.showQueue == false)
+        #expect(self.playerService.showQueue == false)
     }
 
     @Test("showLyrics initially false")
     func showLyricsInitiallyFalse() {
-        #expect(playerService.showLyrics == false)
+        #expect(self.playerService.showLyrics == false)
     }
 
     @Test("Show queue closes lyrics")
     func showQueueClosesLyrics() {
-        playerService.showLyrics = true
-        #expect(playerService.showLyrics == true)
-        #expect(playerService.showQueue == false)
+        self.playerService.showLyrics = true
+        #expect(self.playerService.showLyrics == true)
+        #expect(self.playerService.showQueue == false)
 
-        playerService.showQueue = true
-        #expect(playerService.showQueue == true)
-        #expect(playerService.showLyrics == false, "Opening queue should close lyrics")
+        self.playerService.showQueue = true
+        #expect(self.playerService.showQueue == true)
+        #expect(self.playerService.showLyrics == false, "Opening queue should close lyrics")
     }
 
     @Test("Show lyrics closes queue")
     func showLyricsClosesQueue() {
-        playerService.showQueue = true
-        #expect(playerService.showQueue == true)
-        #expect(playerService.showLyrics == false)
+        self.playerService.showQueue = true
+        #expect(self.playerService.showQueue == true)
+        #expect(self.playerService.showLyrics == false)
 
-        playerService.showLyrics = true
-        #expect(playerService.showLyrics == true)
-        #expect(playerService.showQueue == false, "Opening lyrics should close queue")
+        self.playerService.showLyrics = true
+        #expect(self.playerService.showLyrics == true)
+        #expect(self.playerService.showQueue == false, "Opening lyrics should close queue")
     }
 
     @Test("Both sidebars can be closed")
     func bothSidebarsCanBeClosed() {
-        playerService.showQueue = true
-        #expect(playerService.showQueue == true)
+        self.playerService.showQueue = true
+        #expect(self.playerService.showQueue == true)
 
-        playerService.showQueue = false
-        #expect(playerService.showQueue == false)
-        #expect(playerService.showLyrics == false)
+        self.playerService.showQueue = false
+        #expect(self.playerService.showQueue == false)
+        #expect(self.playerService.showLyrics == false)
     }
 
     // MARK: - Clear Queue Tests
 
     @Test("Clear queue with no current track")
     func clearQueueWithNoCurrentTrack() {
-        playerService.clearQueue()
+        self.playerService.clearQueue()
 
-        #expect(playerService.queue.isEmpty)
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.isEmpty)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Clear queue keeps current track")
@@ -313,11 +313,11 @@ struct PlayerServiceTests {
 
         await playerService.playQueue(songs, startingAt: 1)
 
-        playerService.clearQueue()
+        self.playerService.clearQueue()
 
-        #expect(playerService.queue.count == 1)
-        #expect(playerService.queue.first?.videoId == "v2")
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.count == 1)
+        #expect(self.playerService.queue.first?.videoId == "v2")
+        #expect(self.playerService.currentIndex == 0)
     }
 
     // MARK: - Play From Queue Tests
@@ -331,10 +331,10 @@ struct PlayerServiceTests {
         ]
 
         await playerService.playQueue(songs, startingAt: 0)
-        await playerService.playFromQueue(at: 2)
+        await self.playerService.playFromQueue(at: 2)
 
-        #expect(playerService.currentIndex == 2)
-        #expect(playerService.currentTrack?.videoId == "v3")
+        #expect(self.playerService.currentIndex == 2)
+        #expect(self.playerService.currentTrack?.videoId == "v3")
     }
 
     @Test("Play from queue invalid index does nothing")
@@ -344,9 +344,9 @@ struct PlayerServiceTests {
         ]
 
         await playerService.playQueue(songs, startingAt: 0)
-        await playerService.playFromQueue(at: 5)
+        await self.playerService.playFromQueue(at: 5)
 
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Play from queue negative index does nothing")
@@ -356,9 +356,9 @@ struct PlayerServiceTests {
         ]
 
         await playerService.playQueue(songs, startingAt: 0)
-        await playerService.playFromQueue(at: -1)
+        await self.playerService.playFromQueue(at: -1)
 
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.currentIndex == 0)
     }
 
     // MARK: - Play With Radio Tests
@@ -377,9 +377,9 @@ struct PlayerServiceTests {
 
         await playerService.playWithRadio(song: song)
 
-        #expect(playerService.currentTrack?.videoId == "radio-seed-video")
-        #expect(playerService.currentTrack?.title == "Seed Song")
-        #expect(playerService.queue.isEmpty == false)
+        #expect(self.playerService.currentTrack?.videoId == "radio-seed-video")
+        #expect(self.playerService.currentTrack?.title == "Seed Song")
+        #expect(self.playerService.queue.isEmpty == false)
     }
 
     @Test("Play with radio sets queue with seed song")
@@ -396,9 +396,9 @@ struct PlayerServiceTests {
 
         await playerService.playWithRadio(song: song)
 
-        #expect(playerService.queue.count == 1)
-        #expect(playerService.queue.first?.videoId == "seed-video")
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.count == 1)
+        #expect(self.playerService.queue.first?.videoId == "seed-video")
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Play with radio fetches radio queue")
@@ -410,7 +410,7 @@ struct PlayerServiceTests {
             Song(id: "radio-3", title: "Radio Song 3", artists: [], videoId: "radio-video-3"),
         ]
         mockClient.radioQueueSongs["seed-video"] = radioSongs
-        playerService.setYTMusicClient(mockClient)
+        self.playerService.setYTMusicClient(mockClient)
 
         let song = Song(
             id: "seed",
@@ -426,9 +426,9 @@ struct PlayerServiceTests {
 
         #expect(mockClient.getRadioQueueCalled == true)
         #expect(mockClient.getRadioQueueVideoIds.first == "seed-video")
-        #expect(playerService.queue.count == 4)
-        #expect(playerService.queue.first?.videoId == "seed-video", "Seed song should be at front of queue")
-        #expect(playerService.currentIndex == 0)
+        #expect(self.playerService.queue.count == 4)
+        #expect(self.playerService.queue.first?.videoId == "seed-video", "Seed song should be at front of queue")
+        #expect(self.playerService.currentIndex == 0)
     }
 
     @Test("Play with radio keeps seed song at front when not in radio")
@@ -439,7 +439,7 @@ struct PlayerServiceTests {
             Song(id: "radio-2", title: "Radio Song 2", artists: [], videoId: "radio-video-2"),
         ]
         mockClient.radioQueueSongs["seed-video"] = radioSongs
-        playerService.setYTMusicClient(mockClient)
+        self.playerService.setYTMusicClient(mockClient)
 
         let song = Song(
             id: "seed",
@@ -453,10 +453,10 @@ struct PlayerServiceTests {
 
         await playerService.playWithRadio(song: song)
 
-        #expect(playerService.queue.count == 3)
-        #expect(playerService.queue[0].videoId == "seed-video", "Seed song should be first")
-        #expect(playerService.queue[1].videoId == "radio-video-1")
-        #expect(playerService.queue[2].videoId == "radio-video-2")
+        #expect(self.playerService.queue.count == 3)
+        #expect(self.playerService.queue[0].videoId == "seed-video", "Seed song should be first")
+        #expect(self.playerService.queue[1].videoId == "radio-video-1")
+        #expect(self.playerService.queue[2].videoId == "radio-video-2")
     }
 
     @Test("Play with radio reorders seed song to front")
@@ -468,7 +468,7 @@ struct PlayerServiceTests {
             Song(id: "radio-2", title: "Radio Song 2", artists: [], videoId: "radio-video-2"),
         ]
         mockClient.radioQueueSongs["seed-video"] = radioSongs
-        playerService.setYTMusicClient(mockClient)
+        self.playerService.setYTMusicClient(mockClient)
 
         let song = Song(
             id: "seed",
@@ -482,16 +482,16 @@ struct PlayerServiceTests {
 
         await playerService.playWithRadio(song: song)
 
-        #expect(playerService.queue.count == 3)
-        #expect(playerService.queue[0].videoId == "seed-video", "Seed song should be first")
-        #expect(playerService.queue[1].videoId == "radio-video-1")
-        #expect(playerService.queue[2].videoId == "radio-video-2")
+        #expect(self.playerService.queue.count == 3)
+        #expect(self.playerService.queue[0].videoId == "seed-video", "Seed song should be first")
+        #expect(self.playerService.queue[1].videoId == "radio-video-1")
+        #expect(self.playerService.queue[2].videoId == "radio-video-2")
     }
 
     @Test("Play with radio handles empty radio queue")
     func playWithRadioHandlesEmptyRadioQueue() async {
         let mockClient = MockYTMusicClient()
-        playerService.setYTMusicClient(mockClient)
+        self.playerService.setYTMusicClient(mockClient)
 
         let song = Song(
             id: "lonely",
@@ -505,7 +505,7 @@ struct PlayerServiceTests {
 
         await playerService.playWithRadio(song: song)
 
-        #expect(playerService.queue.count == 1)
-        #expect(playerService.queue.first?.videoId == "lonely-video")
+        #expect(self.playerService.queue.count == 1)
+        #expect(self.playerService.queue.first?.videoId == "lonely-video")
     }
 }

@@ -6,7 +6,7 @@ import Testing
 
 /// Tests for MusicIntent query building and content source suggestion.
 @available(macOS 26.0, *)
-@Suite
+@Suite("MusicIntent", .tags(.api))
 struct MusicIntentTests {
     // MARK: - buildSearchQuery Tests
 
@@ -256,7 +256,7 @@ struct MusicIntentTests {
 // MARK: - MusicQueryTests
 
 @available(macOS 26.0, *)
-@Suite
+@Suite("MusicQuery", .tags(.api))
 struct MusicQueryTests {
     @Test("Build search query basic artist")
     func buildSearchQueryBasicArtist() {
@@ -347,7 +347,7 @@ struct MusicQueryTests {
 // MARK: - AISessionTypeTests
 
 @available(macOS 26.0, *)
-@Suite
+@Suite("AISessionType", .tags(.api))
 struct AISessionTypeTests {
     @Test("Command session has generation options")
     func commandSessionHasLowerTemperature() {
@@ -370,7 +370,7 @@ struct AISessionTypeTests {
 
 // MARK: - ContentSourceTests
 
-@Suite
+@Suite("ContentSource", .tags(.model))
 struct ContentSourceTests {
     @Test(
         "Content source description",
@@ -388,7 +388,7 @@ struct ContentSourceTests {
 // MARK: - QueueIntentTests
 
 @available(macOS 26.0, *)
-@Suite
+@Suite("QueueIntent", .tags(.api))
 struct QueueIntentTests {
     @Test("Queue action values")
     func queueActionValues() {

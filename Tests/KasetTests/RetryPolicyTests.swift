@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for RetryPolicy.
-@Suite("RetryPolicy", .serialized)
+@Suite("RetryPolicy", .serialized, .tags(.api))
 struct RetryPolicyTests {
     @Test("Default policy has expected values")
     func defaultPolicyValues() {
@@ -16,10 +16,10 @@ struct RetryPolicyTests {
     @Test(
         "Delay uses exponential backoff",
         arguments: [
-            (0, 1.0),  // 1 * 2^0 = 1
-            (1, 2.0),  // 1 * 2^1 = 2
-            (2, 4.0),  // 1 * 2^2 = 4
-            (3, 8.0),  // 1 * 2^3 = 8
+            (0, 1.0), // 1 * 2^0 = 1
+            (1, 2.0), // 1 * 2^1 = 2
+            (2, 4.0), // 1 * 2^2 = 4
+            (3, 8.0), // 1 * 2^3 = 8
             (4, 16.0), // 1 * 2^4 = 16
         ]
     )
@@ -31,7 +31,7 @@ struct RetryPolicyTests {
     @Test(
         "Delay is capped at maxDelay",
         arguments: [
-            (5, 8.0),  // Would be 32, but capped at 8
+            (5, 8.0), // Would be 32, but capped at 8
             (10, 8.0), // Would be 1024, but capped at 8
         ]
     )

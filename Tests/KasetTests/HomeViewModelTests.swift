@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for HomeViewModel using mock client.
-@Suite(.serialized)
+@Suite("HomeViewModel", .serialized, .tags(.viewModel), .timeLimit(.minutes(1)))
 @MainActor
 struct HomeViewModelTests {
     var mockClient: MockYTMusicClient
@@ -16,8 +16,8 @@ struct HomeViewModelTests {
 
     @Test("Initial state is idle with empty sections")
     func initialState() {
-        #expect(viewModel.loadingState == .idle)
-        #expect(viewModel.sections.isEmpty)
+        #expect(self.viewModel.loadingState == .idle)
+        #expect(self.viewModel.sections.isEmpty)
     }
 
     @Test("Load success sets sections")
@@ -26,52 +26,52 @@ struct HomeViewModelTests {
             TestFixtures.makeHomeSection(title: "Quick picks"),
             TestFixtures.makeHomeSection(title: "Recommended"),
         ]
-        mockClient.homeResponse = HomeResponse(sections: expectedSections)
+        self.mockClient.homeResponse = HomeResponse(sections: expectedSections)
 
-        await viewModel.load()
+        await self.viewModel.load()
 
-        #expect(mockClient.getHomeCalled == true)
-        #expect(viewModel.loadingState == .loaded)
-        #expect(viewModel.sections.count == 2)
-        #expect(viewModel.sections[0].title == "Quick picks")
-        #expect(viewModel.sections[1].title == "Recommended")
+        #expect(self.mockClient.getHomeCalled == true)
+        #expect(self.viewModel.loadingState == .loaded)
+        #expect(self.viewModel.sections.count == 2)
+        #expect(self.viewModel.sections[0].title == "Quick picks")
+        #expect(self.viewModel.sections[1].title == "Recommended")
     }
 
     @Test("Load error sets error state")
     func loadError() async {
-        mockClient.shouldThrowError = YTMusicError.networkError(underlying: URLError(.notConnectedToInternet))
+        self.mockClient.shouldThrowError = YTMusicError.networkError(underlying: URLError(.notConnectedToInternet))
 
-        await viewModel.load()
+        await self.viewModel.load()
 
-        #expect(mockClient.getHomeCalled == true)
+        #expect(self.mockClient.getHomeCalled == true)
         if case let .error(message) = viewModel.loadingState {
             #expect(!message.isEmpty)
         } else {
             Issue.record("Expected error state")
         }
-        #expect(viewModel.sections.isEmpty)
+        #expect(self.viewModel.sections.isEmpty)
     }
 
     @Test("Load does not duplicate when already loading")
     func loadDoesNotDuplicateWhenAlreadyLoading() async {
-        mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 1)
+        self.mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 1)
 
-        await viewModel.load()
-        await viewModel.load()
+        await self.viewModel.load()
+        await self.viewModel.load()
 
-        #expect(mockClient.getHomeCallCount == 2)
+        #expect(self.mockClient.getHomeCallCount == 2)
     }
 
     @Test("Refresh clears sections and reloads")
     func refreshClearsSectionsAndReloads() async {
-        mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 2)
-        await viewModel.load()
-        #expect(viewModel.sections.count == 2)
+        self.mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 2)
+        await self.viewModel.load()
+        #expect(self.viewModel.sections.count == 2)
 
-        mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 3)
-        await viewModel.refresh()
+        self.mockClient.homeResponse = TestFixtures.makeHomeResponse(sectionCount: 3)
+        await self.viewModel.refresh()
 
-        #expect(viewModel.sections.count == 3)
-        #expect(mockClient.getHomeCallCount == 2)
+        #expect(self.viewModel.sections.count == 3)
+        #expect(self.mockClient.getHomeCallCount == 2)
     }
 }

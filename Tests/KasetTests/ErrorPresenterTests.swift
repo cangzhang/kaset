@@ -2,13 +2,17 @@ import Foundation
 import Testing
 @testable import Kaset
 
+// MARK: - ActionTracker
+
 /// Helper class to track action calls in a thread-safe way.
 private final class ActionTracker: @unchecked Sendable {
     var called = false
 }
 
+// MARK: - ErrorPresenterTests
+
 /// Tests for the ErrorPresenter service.
-@Suite(.serialized)
+@Suite("ErrorPresenter", .serialized, .tags(.service))
 @MainActor
 struct ErrorPresenterTests {
     var sut: ErrorPresenter
@@ -24,61 +28,61 @@ struct ErrorPresenterTests {
     func presentShowsError() {
         let error = PresentableError(title: "Test", message: "Test message")
 
-        sut.present(error)
+        self.sut.present(error)
 
-        #expect(sut.isShowingError == true)
-        #expect(sut.currentError?.title == "Test")
-        #expect(sut.currentError?.message == "Test message")
+        #expect(self.sut.isShowingError == true)
+        #expect(self.sut.currentError?.title == "Test")
+        #expect(self.sut.currentError?.message == "Test message")
     }
 
     @Test("Dismiss clears error")
     func dismissClearsError() {
-        sut.present(PresentableError(title: "Test", message: "Test message"))
+        self.sut.present(PresentableError(title: "Test", message: "Test message"))
 
-        sut.dismiss()
+        self.sut.dismiss()
 
-        #expect(sut.isShowingError == false)
-        #expect(sut.currentError == nil)
+        #expect(self.sut.isShowingError == false)
+        #expect(self.sut.currentError == nil)
     }
 
     // MARK: - YTMusicError Conversion
 
     @Test("Present notAuthenticated error")
     func presentNotAuthenticatedError() {
-        sut.present(YTMusicError.notAuthenticated)
-        #expect(sut.currentError?.title == "Not Signed In")
+        self.sut.present(YTMusicError.notAuthenticated)
+        #expect(self.sut.currentError?.title == "Not Signed In")
     }
 
     @Test("Present authExpired error")
     func presentAuthExpiredError() {
-        sut.present(YTMusicError.authExpired)
-        #expect(sut.currentError?.title == "Session Expired")
+        self.sut.present(YTMusicError.authExpired)
+        #expect(self.sut.currentError?.title == "Session Expired")
     }
 
     @Test("Present network error")
     func presentNetworkError() {
         let urlError = URLError(.notConnectedToInternet)
-        sut.present(YTMusicError.networkError(underlying: urlError))
-        #expect(sut.currentError?.title == "Connection Error")
+        self.sut.present(YTMusicError.networkError(underlying: urlError))
+        #expect(self.sut.currentError?.title == "Connection Error")
     }
 
     @Test("Present API error")
     func presentAPIError() {
-        sut.present(YTMusicError.apiError(message: "Server error", code: 500))
-        #expect(sut.currentError?.title == "Server Error")
+        self.sut.present(YTMusicError.apiError(message: "Server error", code: 500))
+        #expect(self.sut.currentError?.title == "Server Error")
     }
 
     @Test("Present parse error")
     func presentParseError() {
-        sut.present(YTMusicError.parseError(message: "Invalid JSON"))
-        #expect(sut.currentError?.title == "Data Error")
+        self.sut.present(YTMusicError.parseError(message: "Invalid JSON"))
+        #expect(self.sut.currentError?.title == "Data Error")
     }
 
     @Test("Present unknown error")
     func presentUnknownError() {
-        sut.present(YTMusicError.unknown(message: "Something went wrong"))
-        #expect(sut.currentError?.title == "Error")
-        #expect(sut.currentError?.message == "Something went wrong")
+        self.sut.present(YTMusicError.unknown(message: "Something went wrong"))
+        #expect(self.sut.currentError?.title == "Error")
+        #expect(self.sut.currentError?.message == "Something went wrong")
     }
 
     // MARK: - Retry Action Tests
@@ -91,22 +95,22 @@ struct ErrorPresenterTests {
             message: "Test",
             retryAction: { tracker.called = true }
         )
-        sut.present(error)
+        self.sut.present(error)
 
-        await sut.retry()
+        await self.sut.retry()
 
         #expect(tracker.called == true)
-        #expect(sut.isShowingError == false)
+        #expect(self.sut.isShowingError == false)
     }
 
     @Test("Retry without action dismisses")
     func retryWithoutActionDismisses() async {
         let error = PresentableError(title: "Test", message: "Test", retryAction: nil)
-        sut.present(error)
+        self.sut.present(error)
 
-        await sut.retry()
+        await self.sut.retry()
 
-        #expect(sut.isShowingError == false)
+        #expect(self.sut.isShowingError == false)
     }
 
     // MARK: - Dismiss Action Tests
@@ -119,9 +123,9 @@ struct ErrorPresenterTests {
             message: "Test",
             dismissAction: { tracker.called = true }
         )
-        sut.present(error)
+        self.sut.present(error)
 
-        sut.dismiss()
+        self.sut.dismiss()
 
         #expect(tracker.called == true)
     }
@@ -131,14 +135,14 @@ struct ErrorPresenterTests {
     @Test("Present URLError")
     func presentURLError() {
         let urlError = URLError(.notConnectedToInternet) as Error
-        sut.present(urlError)
-        #expect(sut.currentError?.title == "Connection Error")
+        self.sut.present(urlError)
+        #expect(self.sut.currentError?.title == "Connection Error")
     }
 
     @Test("Present generic error")
     func presentGenericError() {
         struct CustomError: Error {}
-        sut.present(CustomError())
-        #expect(sut.currentError?.title == "Error")
+        self.sut.present(CustomError())
+        #expect(self.sut.currentError?.title == "Error")
     }
 }

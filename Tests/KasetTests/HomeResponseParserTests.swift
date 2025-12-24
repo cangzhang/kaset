@@ -3,7 +3,7 @@ import Testing
 @testable import Kaset
 
 /// Tests for the HomeResponseParser.
-@Suite
+@Suite("HomeResponseParser", .tags(.parser))
 struct HomeResponseParserTests {
     @Test("Parse empty response returns empty sections")
     func parseEmptyResponse() {
@@ -14,7 +14,7 @@ struct HomeResponseParserTests {
 
     @Test("Parse response with multiple sections")
     func parseResponseWithSections() {
-        let data = makeHomeResponseData(sectionCount: 3)
+        let data = self.makeHomeResponseData(sectionCount: 3)
         let response = HomeResponseParser.parse(data)
         #expect(response.sections.count == 3)
     }
