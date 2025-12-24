@@ -7,7 +7,6 @@ cask "kaset" do
   desc "Native macOS YouTube Music client"
   homepage "https://github.com/sozercan/kaset"
 
-  auto_updates true
   depends_on macos: ">= :tahoe"
 
   app "Kaset.app"
