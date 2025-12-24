@@ -65,6 +65,77 @@ enum YTMusicError: LocalizedError, Sendable {
             false
         }
     }
+
+    /// Whether this error can be resolved by retrying the operation.
+    /// Retryable errors are typically transient (network, server issues).
+    /// Non-retryable errors require user action (auth) or indicate permanent failure (parse errors).
+    var isRetryable: Bool {
+        switch self {
+        case .authExpired, .notAuthenticated:
+            // Auth errors need user to re-login, not retry
+            return false
+        case .networkError:
+            // Network issues are often transient
+            return true
+        case .apiError(_, let code):
+            // Server errors (5xx) are retryable, client errors (4xx) usually aren't
+            if let code {
+                return code >= 500
+            }
+            return true
+        case .parseError:
+            // Parse errors won't be fixed by retrying
+            return false
+        case .playbackError:
+            // Playback errors might be transient
+            return true
+        case .unknown:
+            // Unknown errors might be transient
+            return true
+        }
+    }
+
+    /// User-friendly title for displaying in error UI.
+    var userFriendlyTitle: String {
+        switch self {
+        case .authExpired, .notAuthenticated:
+            "Authentication Required"
+        case .networkError:
+            "Connection Error"
+        case .apiError:
+            "Server Error"
+        case .parseError:
+            "Data Error"
+        case .playbackError:
+            "Playback Error"
+        case .unknown:
+            "Error"
+        }
+    }
+
+    /// User-friendly message for displaying in error UI.
+    var userFriendlyMessage: String {
+        switch self {
+        case .authExpired:
+            "Your session has expired. Please sign in again."
+        case .notAuthenticated:
+            "Please sign in to access this content."
+        case .networkError:
+            "Unable to connect. Please check your internet connection."
+        case .apiError(_, let code):
+            if let code {
+                "Something went wrong (Error \(code))."
+            } else {
+                "Something went wrong. Please try again."
+            }
+        case .parseError:
+            "Unable to load content. Please try again."
+        case .playbackError:
+            "Unable to play this track. Try a different one."
+        case .unknown(let message):
+            message
+        }
+    }
 }
 
 // MARK: CustomDebugStringConvertible

@@ -168,7 +168,7 @@ final class SearchViewModel {
         } catch {
             if !Task.isCancelled {
                 self.logger.error("Search failed: \(error.localizedDescription)")
-                self.loadingState = .error(error.localizedDescription)
+                self.loadingState = .error(LoadingError(from: error))
             }
         }
     }

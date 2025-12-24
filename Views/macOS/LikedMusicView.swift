@@ -16,8 +16,8 @@ struct LikedMusicView: View {
                     LoadingView("Loading liked songs...")
                 case .loaded, .loadingMore:
                     self.contentView
-                case let .error(message):
-                    ErrorView(title: "Unable to load liked songs", message: message) {
+                case let .error(error):
+                    ErrorView(error: error) {
                         Task { await self.viewModel.refresh() }
                     }
                 }

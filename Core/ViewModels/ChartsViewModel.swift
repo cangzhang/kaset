@@ -56,7 +56,7 @@ final class ChartsViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load charts: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

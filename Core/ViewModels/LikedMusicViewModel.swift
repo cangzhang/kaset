@@ -37,7 +37,7 @@ final class LikedMusicViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load liked songs: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

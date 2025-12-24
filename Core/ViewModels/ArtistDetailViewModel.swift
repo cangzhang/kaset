@@ -72,9 +72,8 @@ final class ArtistDetailViewModel {
             self.logger.debug("Artist detail load cancelled")
             self.loadingState = .idle
         } catch {
-            let errorMessage = error.localizedDescription
-            self.logger.error("Failed to load artist: \(errorMessage)")
-            self.loadingState = .error(errorMessage)
+            self.logger.error("Failed to load artist: \(error.localizedDescription)")
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

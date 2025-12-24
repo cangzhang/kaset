@@ -56,7 +56,7 @@ final class HomeViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load home: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

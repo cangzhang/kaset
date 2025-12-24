@@ -45,7 +45,7 @@ final class MoodCategoryViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load mood category: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

@@ -50,8 +50,8 @@ struct PlaylistDetailView: View {
                         Task { await self.viewModel.load() }
                     }
                 }
-            case let .error(message):
-                ErrorView(title: "Unable to load playlist", message: message) {
+            case let .error(error):
+                ErrorView(error: error) {
                     Task { await self.viewModel.load() }
                 }
             }

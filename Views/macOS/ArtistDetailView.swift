@@ -20,8 +20,8 @@ struct ArtistDetailView: View {
                         Task { await self.viewModel.load() }
                     }
                 }
-            case let .error(message):
-                ErrorView(title: "Unable to load artist", message: message) {
+            case let .error(error):
+                ErrorView(error: error) {
                     Task { await self.viewModel.load() }
                 }
             }

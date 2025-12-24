@@ -224,8 +224,8 @@ struct SearchView: View {
             } else {
                 self.resultsView
             }
-        case let .error(message):
-            ErrorView(title: "Search failed", message: message) {
+        case let .error(error):
+            ErrorView(error: error) {
                 self.viewModel.search()
             }
         }

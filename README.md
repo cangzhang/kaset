@@ -15,6 +15,9 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 - 🧭 **Explore** — Discover new releases, charts, and moods & genres
 - 📚 **Library Access** — Browse your playlists, liked songs, albums, and artists
 - 🔍 **Search** — Find songs, albums, artists, and playlists
+- ✨ **Apple Intelligence** — On-device AI for natural language commands, lyrics explanations, and playlist refinement
+- 📜 **Lyrics** — View song lyrics with AI-powered explanations and mood analysis
+- 📃 **Queue Management** — View, reorder, shuffle, and clear your playback queue
 
 ## Requirements
 
@@ -57,12 +60,13 @@ brew install --cask kaset --no-quarantine
 
 ### Navigation
 
-| Shortcut | Action        |
-| -------- | ------------- |
-| `⌘1`     | Go to Home    |
-| `⌘2`     | Go to Explore |
-| `⌘3`     | Go to Library |
-| `⌘F`     | Go to Search  |
+| Shortcut | Action           |
+| -------- | ---------------- |
+| `⌘1`     | Go to Home       |
+| `⌘2`     | Go to Explore    |
+| `⌘3`     | Go to Library    |
+| `⌘F`     | Go to Search     |
+| `⌘K`     | Open Command Bar |
 
 ## Contributing
 

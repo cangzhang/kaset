@@ -80,7 +80,7 @@ final class LibraryViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load library: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 
@@ -103,7 +103,7 @@ final class LibraryViewModel {
             self.playlistDetailLoadingState = .idle
         } catch {
             self.logger.error("Failed to load playlist: \(error.localizedDescription)")
-            self.playlistDetailLoadingState = .error(error.localizedDescription)
+            self.playlistDetailLoadingState = .error(LoadingError(from: error))
         }
     }
 

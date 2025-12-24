@@ -15,8 +15,8 @@ struct MoodsAndGenresView: View {
                     LoadingView("Loading moods & genres...")
                 case .loaded, .loadingMore:
                     self.contentView
-                case let .error(message):
-                    ErrorView(message: message) {
+                case let .error(error):
+                    ErrorView(error: error) {
                         Task { await self.viewModel.refresh() }
                     }
                 }

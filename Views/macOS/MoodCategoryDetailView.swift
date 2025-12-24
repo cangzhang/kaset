@@ -18,8 +18,8 @@ struct MoodCategoryDetailView: View {
                 LoadingView("Loading \(self.viewModel.category.title)...")
             case .loaded, .loadingMore:
                 self.contentView
-            case let .error(message):
-                ErrorView(message: message) {
+            case let .error(error):
+                ErrorView(error: error) {
                     Task { await self.viewModel.refresh() }
                 }
             }

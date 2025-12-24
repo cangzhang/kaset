@@ -60,9 +60,8 @@ final class PlaylistDetailViewModel {
             self.logger.debug("Playlist detail load cancelled")
             self.loadingState = .idle
         } catch {
-            let errorMessage = error.localizedDescription
-            self.logger.error("Failed to load playlist: \(errorMessage)")
-            self.loadingState = .error(errorMessage)
+            self.logger.error("Failed to load playlist: \(error.localizedDescription)")
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

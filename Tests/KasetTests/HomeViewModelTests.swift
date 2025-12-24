@@ -44,8 +44,9 @@ struct HomeViewModelTests {
         await self.viewModel.load()
 
         #expect(self.mockClient.getHomeCalled == true)
-        if case let .error(message) = viewModel.loadingState {
-            #expect(!message.isEmpty)
+        if case let .error(error) = viewModel.loadingState {
+            #expect(!error.message.isEmpty)
+            #expect(error.isRetryable)
         } else {
             Issue.record("Expected error state")
         }

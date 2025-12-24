@@ -57,7 +57,7 @@ final class ExploreViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load explore: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

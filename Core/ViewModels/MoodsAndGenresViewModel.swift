@@ -56,7 +56,7 @@ final class MoodsAndGenresViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load moods and genres: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

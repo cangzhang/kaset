@@ -356,6 +356,30 @@ The `MusicIntentIntegrationTests` suite validates LLM parsing of natural languag
 - macOS 26+ with Apple Intelligence enabled
 - Tests skip gracefully when AI is unavailable via `throw TestSkipped()`
 
+#### Flakiness Mitigation
+
+LLM outputs are inherently non-deterministic. These tests mitigate flakiness by:
+
+1. **Retry logic**: Each test retries up to 3 times before failing (with 500ms delays)
+2. **Relaxed matching**: Checks multiple fields (e.g., `mood` OR `query`) for expected content
+3. **Case-insensitive**: All string comparisons are lowercased
+4. **Fresh sessions**: Each attempt uses a new `LanguageModelSession` to avoid context drift
+5. **Tagged for exclusion**: Use `-skip-test-tag integration` in CI to skip these tests
+
+#### Recommended CI Configuration
+
+For stable CI pipelines, **exclude integration tests** and run them separately in a scheduled job:
+
+```bash
+# CI: Run unit tests only (stable)
+xcodebuild test -scheme Kaset -destination 'platform=macOS' \
+  -only-testing:KasetTests -skip-test-tag integration
+
+# Scheduled job: Run integration tests (may need re-runs)
+xcodebuild test -scheme Kaset -destination 'platform=macOS' \
+  -only-testing:KasetTests/MusicIntentIntegrationTests
+```
+
 #### What's Tested
 
 | Category         | Test Count | Example Prompts                              |
@@ -390,9 +414,10 @@ xcodebuild test -scheme Kaset -destination 'platform=macOS' \
 #### Test Characteristics
 
 - **Tagged**: `.integration` and `.slow` for easy filtering
-- **Skip-friendly**: Uses `throw TestSkipped()` when AI unavailable
+- **Skip-friendly**: Uses `throw AIUnavailableError()` when AI unavailable
 - **Parameterized**: Efficient coverage with Swift Testing's `arguments:`
-- **Non-deterministic**: LLM output may vary; tests use flexible matching
+- **Retry-enabled**: Up to 3 attempts per test to handle LLM non-determinism
+- **Relaxed validation**: Checks multiple fields to accommodate LLM output variance
 
 ### Manual Test Checklist
 

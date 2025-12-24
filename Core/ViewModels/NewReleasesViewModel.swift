@@ -56,7 +56,7 @@ final class NewReleasesViewModel {
             self.loadingState = .idle
         } catch {
             self.logger.error("Failed to load new releases: \(error.localizedDescription)")
-            self.loadingState = .error(error.localizedDescription)
+            self.loadingState = .error(LoadingError(from: error))
         }
     }
 

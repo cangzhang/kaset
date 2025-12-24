@@ -15,8 +15,8 @@ struct ExploreView: View {
                     LoadingView("Loading explore content...")
                 case .loaded, .loadingMore:
                     self.contentView
-                case let .error(message):
-                    ErrorView(message: message) {
+                case let .error(error):
+                    ErrorView(error: error) {
                         Task { await self.viewModel.refresh() }
                     }
                 }

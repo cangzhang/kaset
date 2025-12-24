@@ -2,6 +2,31 @@ import CryptoKit
 import Foundation
 import os
 
+// MARK: - PaginatedContentType
+
+/// Identifies content types that support pagination via continuation tokens.
+/// Used internally by YTMusicClient to manage pagination state generically.
+enum PaginatedContentType: String, Hashable, Sendable {
+    case home = "FEmusic_home"
+    case explore = "FEmusic_explore"
+    case charts = "FEmusic_charts"
+    case moodsAndGenres = "FEmusic_moods_and_genres"
+    case newReleases = "FEmusic_new_releases"
+    case podcasts = "FEmusic_podcasts"
+
+    /// Display name for logging.
+    var displayName: String {
+        switch self {
+        case .home: "home"
+        case .explore: "explore"
+        case .charts: "charts"
+        case .moodsAndGenres: "moods and genres"
+        case .newReleases: "new releases"
+        case .podcasts: "podcasts"
+        }
+    }
+}
+
 /// Client for making authenticated requests to YouTube Music's internal API.
 @MainActor
 final class YTMusicClient: YTMusicClientProtocol {
@@ -19,6 +44,9 @@ final class YTMusicClient: YTMusicClientProtocol {
     /// Client version for WEB_REMIX.
     private static let clientVersion = "1.20231204.01.00"
 
+    /// Centralized storage for continuation tokens keyed by content type.
+    private var continuationTokens: [PaginatedContentType: String] = [:]
+
     init(authService: AuthService, webKitManager: WebKitManager = .shared) {
         self.authService = authService
         self.webKitManager = webKitManager
@@ -30,325 +58,151 @@ final class YTMusicClient: YTMusicClientProtocol {
         self.session = URLSession(configuration: configuration)
     }
 
-    // MARK: - Public API Methods
+    // MARK: - Generic Pagination Methods
 
-    /// Maximum total continuations to prevent infinite loops.
-    private static let maxTotalContinuations = 5
+    /// Fetches paginated content for the given content type.
+    /// Stores the continuation token for subsequent calls to `getContinuation`.
+    private func fetchPaginatedContent(type: PaginatedContentType) async throws -> HomeResponse {
+        self.logger.info("Fetching \(type.displayName) page")
+
+        let body: [String: Any] = [
+            "browseId": type.rawValue,
+        ]
+
+        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
+        let response = HomeResponseParser.parse(data)
+
+        // Store continuation token for progressive loading
+        let token = HomeResponseParser.extractContinuationToken(from: data)
+        self.continuationTokens[type] = token
+
+        let hasMore = token != nil
+        self.logger.info("\(type.displayName.capitalized) page loaded: \(response.sections.count) initial sections, hasMore: \(hasMore)")
+        return response
+    }
+
+    /// Fetches the next batch of sections for the given content type via continuation.
+    /// Returns nil if no more sections are available.
+    private func fetchContinuation(type: PaginatedContentType) async throws -> [HomeSection]? {
+        guard let token = continuationTokens[type] else {
+            self.logger.debug("No \(type.displayName) continuation token available")
+            return nil
+        }
+
+        self.logger.info("Fetching \(type.displayName) continuation")
+
+        do {
+            let continuationData = try await requestContinuation(token)
+            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
+            self.continuationTokens[type] = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
+            let hasMore = self.continuationTokens[type] != nil
+
+            self.logger.info("\(type.displayName.capitalized) continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
+            return additionalSections
+        } catch {
+            self.logger.warning("Failed to fetch \(type.displayName) continuation: \(error.localizedDescription)")
+            self.continuationTokens[type] = nil
+            throw error
+        }
+    }
+
+    /// Checks whether more sections are available for the given content type.
+    private func hasMoreSections(for type: PaginatedContentType) -> Bool {
+        self.continuationTokens[type] != nil
+    }
+
+    // MARK: - Public API Methods (Protocol Conformance)
 
     /// Fetches the home page content (initial sections only for fast display).
     /// Call `getHomeContinuation` to load additional sections progressively.
     func getHome() async throws -> HomeResponse {
-        self.logger.info("Fetching home page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_home",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._homeContinuationToken = token
-
-        self.logger.info("Home page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .home)
     }
-
-    /// Internal storage for continuation token (reset on each getHome call).
-    private var _homeContinuationToken: String?
 
     /// Fetches the next batch of home sections via continuation.
     /// Returns nil if no more sections are available.
     func getHomeContinuation() async throws -> [HomeSection]? {
-        guard let token = _homeContinuationToken else {
-            self.logger.debug("No home continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching home continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._homeContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._homeContinuationToken != nil
-
-            self.logger.info("Home continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch home continuation: \(error.localizedDescription)")
-            self._homeContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .home)
     }
 
     /// Whether more home sections are available to load.
     var hasMoreHomeSections: Bool {
-        self._homeContinuationToken != nil
+        hasMoreSections(for: .home)
     }
 
     /// Fetches the explore page content (initial sections only for fast display).
     func getExplore() async throws -> HomeResponse {
-        self.logger.info("Fetching explore page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_explore",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._exploreContinuationToken = token
-
-        self.logger.info("Explore page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .explore)
     }
-
-    /// Internal storage for explore continuation token.
-    private var _exploreContinuationToken: String?
 
     /// Fetches the next batch of explore sections via continuation.
     func getExploreContinuation() async throws -> [HomeSection]? {
-        guard let token = _exploreContinuationToken else {
-            self.logger.debug("No explore continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching explore continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._exploreContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._exploreContinuationToken != nil
-
-            self.logger.info("Explore continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch explore continuation: \(error.localizedDescription)")
-            self._exploreContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .explore)
     }
 
     /// Whether more explore sections are available to load.
     var hasMoreExploreSections: Bool {
-        self._exploreContinuationToken != nil
+        hasMoreSections(for: .explore)
     }
-
-    // MARK: - Charts
-
-    /// Internal storage for charts continuation token.
-    private var _chartsContinuationToken: String?
 
     /// Fetches the charts page content (initial sections only for fast display).
     func getCharts() async throws -> HomeResponse {
-        self.logger.info("Fetching charts page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_charts",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._chartsContinuationToken = token
-
-        self.logger.info("Charts page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .charts)
     }
 
     /// Fetches the next batch of charts sections via continuation.
     func getChartsContinuation() async throws -> [HomeSection]? {
-        guard let token = _chartsContinuationToken else {
-            self.logger.debug("No charts continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching charts continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._chartsContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._chartsContinuationToken != nil
-
-            self.logger.info("Charts continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch charts continuation: \(error.localizedDescription)")
-            self._chartsContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .charts)
     }
 
     /// Whether more charts sections are available to load.
     var hasMoreChartsSections: Bool {
-        self._chartsContinuationToken != nil
+        hasMoreSections(for: .charts)
     }
-
-    // MARK: - Moods and Genres
-
-    /// Internal storage for moods and genres continuation token.
-    private var _moodsAndGenresContinuationToken: String?
 
     /// Fetches the moods and genres page content (initial sections only for fast display).
     func getMoodsAndGenres() async throws -> HomeResponse {
-        self.logger.info("Fetching moods and genres page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_moods_and_genres",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._moodsAndGenresContinuationToken = token
-
-        self.logger.info("Moods and genres page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .moodsAndGenres)
     }
 
     /// Fetches the next batch of moods and genres sections via continuation.
     func getMoodsAndGenresContinuation() async throws -> [HomeSection]? {
-        guard let token = _moodsAndGenresContinuationToken else {
-            self.logger.debug("No moods and genres continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching moods and genres continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._moodsAndGenresContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._moodsAndGenresContinuationToken != nil
-
-            self.logger.info("Moods and genres continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch moods and genres continuation: \(error.localizedDescription)")
-            self._moodsAndGenresContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .moodsAndGenres)
     }
 
     /// Whether more moods and genres sections are available to load.
     var hasMoreMoodsAndGenresSections: Bool {
-        self._moodsAndGenresContinuationToken != nil
+        hasMoreSections(for: .moodsAndGenres)
     }
-
-    // MARK: - New Releases
-
-    /// Internal storage for new releases continuation token.
-    private var _newReleasesContinuationToken: String?
 
     /// Fetches the new releases page content (initial sections only for fast display).
     func getNewReleases() async throws -> HomeResponse {
-        self.logger.info("Fetching new releases page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_new_releases",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._newReleasesContinuationToken = token
-
-        self.logger.info("New releases page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .newReleases)
     }
 
     /// Fetches the next batch of new releases sections via continuation.
     func getNewReleasesContinuation() async throws -> [HomeSection]? {
-        guard let token = _newReleasesContinuationToken else {
-            self.logger.debug("No new releases continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching new releases continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._newReleasesContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._newReleasesContinuationToken != nil
-
-            self.logger.info("New releases continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch new releases continuation: \(error.localizedDescription)")
-            self._newReleasesContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .newReleases)
     }
 
     /// Whether more new releases sections are available to load.
     var hasMoreNewReleasesSections: Bool {
-        self._newReleasesContinuationToken != nil
+        hasMoreSections(for: .newReleases)
     }
-
-    // MARK: - Podcasts
-
-    /// Internal storage for podcasts continuation token.
-    private var _podcastsContinuationToken: String?
 
     /// Fetches the podcasts page content (initial sections only for fast display).
     func getPodcasts() async throws -> HomeResponse {
-        self.logger.info("Fetching podcasts page")
-
-        let body: [String: Any] = [
-            "browseId": "FEmusic_podcasts",
-        ]
-
-        let data = try await request("browse", body: body, ttl: APICache.TTL.home)
-        let response = HomeResponseParser.parse(data)
-
-        // Store continuation token for progressive loading
-        let token = HomeResponseParser.extractContinuationToken(from: data)
-        self._podcastsContinuationToken = token
-
-        self.logger.info("Podcasts page loaded: \(response.sections.count) initial sections, hasMore: \(token != nil)")
-        return response
+        try await fetchPaginatedContent(type: .podcasts)
     }
 
     /// Fetches the next batch of podcasts sections via continuation.
     func getPodcastsContinuation() async throws -> [HomeSection]? {
-        guard let token = _podcastsContinuationToken else {
-            self.logger.debug("No podcasts continuation token available")
-            return nil
-        }
-
-        self.logger.info("Fetching podcasts continuation")
-
-        do {
-            let continuationData = try await requestContinuation(token)
-            let additionalSections = HomeResponseParser.parseContinuation(continuationData)
-            self._podcastsContinuationToken = HomeResponseParser.extractContinuationTokenFromContinuation(continuationData)
-            let hasMore = self._podcastsContinuationToken != nil
-
-            self.logger.info("Podcasts continuation loaded: \(additionalSections.count) sections, hasMore: \(hasMore)")
-            return additionalSections
-        } catch {
-            self.logger.warning("Failed to fetch podcasts continuation: \(error.localizedDescription)")
-            self._podcastsContinuationToken = nil
-            throw error
-        }
+        try await fetchContinuation(type: .podcasts)
     }
 
     /// Whether more podcasts sections are available to load.
     var hasMorePodcastsSections: Bool {
-        self._podcastsContinuationToken != nil
+        hasMoreSections(for: .podcasts)
     }
 
     /// Makes a continuation request.
