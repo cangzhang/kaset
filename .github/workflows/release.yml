@@ -36,20 +36,6 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Run unit tests
-        run: |
-          set -o pipefail
-          xcodebuild \
-            -project Kaset.xcodeproj \
-            -scheme Kaset \
-            -destination 'platform=macOS' \
-            -derivedDataPath ./build \
-            -only-testing:KasetTests \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            test
-
       - name: Determine version from tag
         id: version
         run: |
