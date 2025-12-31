@@ -99,8 +99,19 @@ jobs:
           fi
 
           # Create styled DMG with Applications symlink
+          # Extract app icon for DMG volume icon
+          VOLICON_ARGS=""
+          APP_ICON="$APP_PATH/Contents/Resources/AppIcon.icns"
+          if [ -f "$APP_ICON" ]; then
+            VOLICON_ARGS="--volicon $APP_ICON"
+            echo "Using app icon for DMG volume: $APP_ICON"
+          else
+            echo "Warning: AppIcon.icns not found at $APP_ICON"
+          fi
+
           create-dmg \
             --volname "Kaset" \
+            $VOLICON_ARGS \
             --window-pos 200 120 \
             --window-size 660 400 \
             --icon-size 100 \
