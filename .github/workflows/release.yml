@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0  # Full history for changelog generation
 
       - name: Select Xcode version
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -312,7 +312,7 @@ jobs:
             homepage "https://github.com/${{ github.repository }}"
 
             auto_updates true
-            depends_on macos: ">= :tahoe"
+            depends_on macos: ">= :sequoia"
 
             app "Kaset.app"
 
@@ -356,7 +356,7 @@ jobs:
                           length="${LENGTH}"
                           type="application/octet-stream"
                           sparkle:edSignature="${SIGNATURE}"/>
-                      <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+                      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
                   </item>
 
               </channel>
