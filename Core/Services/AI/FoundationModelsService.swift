@@ -1,3 +1,4 @@
+#if canImport(FoundationModels)
 import Foundation
 import FoundationModels
 import Observation
@@ -256,3 +257,4 @@ final class FoundationModelsService {
         }
     }
 }
+#endif

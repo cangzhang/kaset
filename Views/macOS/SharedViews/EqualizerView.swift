@@ -4,7 +4,7 @@ import SwiftUI
 
 /// An animated equalizer view that shows audio levels, commonly used as a "now playing" indicator.
 /// Displays animated bars that move up and down to simulate audio visualization.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct EqualizerView: View {
     /// Whether the equalizer is animating (playing state).
     var isAnimating: Bool
@@ -42,7 +42,7 @@ struct EqualizerView: View {
 // MARK: - EqualizerBar
 
 /// A single animated bar in the equalizer.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 private struct EqualizerBar: View {
     let isAnimating: Bool
     let barIndex: Int
@@ -137,7 +137,7 @@ private struct EqualizerBar: View {
 // MARK: - NowPlayingIndicator
 
 /// A compact now-playing indicator that shows equalizer when playing, or a static icon when paused.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct NowPlayingIndicator: View {
     var isPlaying: Bool
     var size: CGFloat = 16
@@ -165,7 +165,7 @@ struct NowPlayingIndicator: View {
 
 // MARK: - Preview
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview {
     VStack(spacing: 24) {
         // Playing state

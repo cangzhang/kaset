@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - MainWindow
 
 /// Main application window with sidebar navigation and player bar.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct MainWindow: View {
     @Environment(AuthService.self) private var authService
     @Environment(PlayerService.self) private var playerService
@@ -89,26 +89,34 @@ struct MainWindow: View {
             LoginSheet()
         }
         .overlay {
-            // Command bar overlay - dismisses when clicking outside
-            if self.showCommandBarSheet, let client = ytMusicClient {
-                ZStack {
-                    // Background tap area to dismiss
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                        .onTapGesture {
-                            self.showCommandBarSheet = false
-                        }
+            // Command bar overlay - dismisses when clicking outside (macOS 26+ only)
+            #if canImport(FoundationModels)
+                if #available(macOS 26.0, *) {
+                    if self.showCommandBarSheet, let client = ytMusicClient {
+                        ZStack {
+                            // Background tap area to dismiss
+                            Color.black.opacity(0.3)
+                                .ignoresSafeArea()
+                                .onTapGesture {
+                                    self.showCommandBarSheet = false
+                                }
 
-                    // Command bar centered
-                    CommandBarView(client: client, isPresented: self.$showCommandBarSheet)
-                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                            // Command bar centered
+                            CommandBarView(client: client, isPresented: self.$showCommandBarSheet)
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        }
+                        .animation(.easeInOut(duration: 0.15), value: self.showCommandBarSheet)
+                    }
                 }
-                .animation(.easeInOut(duration: 0.15), value: self.showCommandBarSheet)
-            }
+            #endif
         }
         .onChange(of: self.showCommandBar.wrappedValue) { _, newValue in
             if newValue {
-                self.showCommandBarSheet = true
+                #if canImport(FoundationModels)
+                    if #available(macOS 26.0, *) {
+                        self.showCommandBarSheet = true
+                    }
+                #endif
                 self.showCommandBar.wrappedValue = false
             }
         }
@@ -189,7 +197,7 @@ struct MainWindow: View {
 
         Group {
             if self.playerService.showLyrics {
-                LyricsView(client: client)
+                AdaptiveLyricsView(client: client)
             } else if self.playerService.showQueue {
                 QueueView()
             }
@@ -356,7 +364,7 @@ enum NavigationItem: String, Hashable, CaseIterable, Identifiable {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview {
     @Previewable @State var navSelection: NavigationItem? = .home
     let authService = AuthService()

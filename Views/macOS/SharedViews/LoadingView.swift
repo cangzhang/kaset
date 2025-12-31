@@ -96,7 +96,7 @@ struct LoadingView: View {
 // MARK: - HomeLoadingView
 
 /// A specialized loading view for the home screen with skeleton sections.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct HomeLoadingView: View {
     var body: some View {
         ScrollView {

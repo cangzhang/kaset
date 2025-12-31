@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Home view displaying personalized content sections.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct HomeView: View {
     @State var viewModel: HomeViewModel
     @Environment(PlayerService.self) private var playerService

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Library view displaying user's playlists.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct LibraryView: View {
     @State var viewModel: LibraryViewModel
     @Environment(PlayerService.self) private var playerService

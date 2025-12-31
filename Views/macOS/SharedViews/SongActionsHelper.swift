@@ -78,7 +78,7 @@ enum SongActionsHelper {
 // MARK: - LikeDislikeContextMenu
 
 /// Reusable context menu items for like/dislike actions.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct LikeDislikeContextMenu: View {
     let song: Song
     let likeStatusManager: SongLikeStatusManager

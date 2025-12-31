@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Detail view for an artist showing their songs and albums.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct ArtistDetailView: View {
     let artist: Artist
     @State var viewModel: ArtistDetailViewModel

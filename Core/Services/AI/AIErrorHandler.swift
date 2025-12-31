@@ -1,3 +1,4 @@
+#if canImport(FoundationModels)
 import Foundation
 import FoundationModels
 
@@ -166,3 +167,4 @@ enum AIErrorHandler {
         return self.userMessage(for: aiError)
     }
 }
+#endif

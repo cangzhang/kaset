@@ -1,13 +1,14 @@
-import Foundation
-import FoundationModels
+#if canImport(FoundationModels)
+    import Foundation
+    import FoundationModels
 
-// MARK: - MusicIntent
+    // MARK: - MusicIntent
 
-/// Represents a user's intent when using natural language music commands.
-/// The model generates this from free-form text like "play some jazz" or "skip this song".
-@available(macOS 26.0, *)
-@Generable
-struct MusicIntent: Sendable {
+    /// Represents a user's intent when using natural language music commands.
+    /// The model generates this from free-form text like "play some jazz" or "skip this song".
+    @available(macOS 26.0, *)
+    @Generable
+    struct MusicIntent: Sendable {
     /// The type of action the user wants to perform.
     @Guide(description: "The action to perform: play, queue, shuffle, like, dislike, skip, previous, pause, resume, search")
     let action: MusicAction
@@ -316,6 +317,7 @@ enum MusicAction: String, Sendable, CaseIterable {
     case resume
     case search
 }
+#endif
 
 // MARK: - ContentSource
 

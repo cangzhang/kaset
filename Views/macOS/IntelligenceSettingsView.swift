@@ -1,3 +1,4 @@
+#if canImport(FoundationModels)
 import FoundationModels
 import SwiftUI
 
@@ -189,3 +190,36 @@ struct IntelligenceSettingsView: View {
         }
     }
 }
+#else
+import SwiftUI
+
+/// Fallback settings view when Apple Intelligence is not available (macOS < 26).
+@available(macOS 15.0, *)
+struct IntelligenceSettingsView: View {
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 24))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Not Available")
+                            .font(.headline)
+                        Text("Apple Intelligence requires macOS 26 or later")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Apple Intelligence")
+            }
+        }
+        .formStyle(.grouped)
+        .frame(minWidth: 400, minHeight: 200)
+        .navigationTitle("Intelligence")
+    }
+}
+#endif

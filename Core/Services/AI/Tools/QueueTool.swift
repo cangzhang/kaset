@@ -1,11 +1,12 @@
-import Foundation
-import FoundationModels
+#if canImport(FoundationModels)
+    import Foundation
+    import FoundationModels
 
-/// A tool that provides the current playback queue context to the language model.
-/// This allows AI to understand what's in the queue before making changes.
-@available(macOS 26.0, *)
-@MainActor
-struct QueueTool: Tool {
+    /// A tool that provides the current playback queue context to the language model.
+    /// This allows AI to understand what's in the queue before making changes.
+    @available(macOS 26.0, *)
+    @MainActor
+    struct QueueTool: Tool {
     /// The PlayerService used to access queue state.
     private let playerService: PlayerService
 
@@ -65,3 +66,4 @@ struct QueueTool: Tool {
         }
     }
 }
+#endif

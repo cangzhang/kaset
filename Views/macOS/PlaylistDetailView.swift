@@ -1,10 +1,12 @@
-import FoundationModels
+#if canImport(FoundationModels)
+    import FoundationModels
+#endif
 import SwiftUI
 
 // MARK: - PlaylistDetailView
 
 /// Detail view for a playlist showing its tracks.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct PlaylistDetailView: View {
     let playlist: Playlist
     @State var viewModel: PlaylistDetailViewModel
@@ -15,27 +17,13 @@ struct PlaylistDetailView: View {
     /// Tracks whether this playlist has been added to library in this session.
     @State private var isAddedToLibrary: Bool = false
 
-    /// Whether the refine playlist sheet is visible.
+    /// Whether the refine playlist sheet is visible (macOS 26+ only).
     @State private var showRefineSheet: Bool = false
-
-    /// AI-generated playlist changes.
-    @State private var playlistChanges: PlaylistChanges?
-
-    /// Partial playlist changes during streaming.
-    @State private var partialChanges: PlaylistChanges.PartiallyGenerated?
-
-    /// Whether AI is processing the refine request.
-    @State private var isRefining: Bool = false
-
-    /// Error message from refine operation.
-    @State private var refineError: String?
 
     /// Computed property to check if playlist is in library.
     private var isInLibrary: Bool {
         LibraryViewModel.shared?.isInLibrary(playlistId: self.playlist.id) ?? false
     }
-
-    private let logger = DiagnosticsLogger.ai
 
     init(playlist: Playlist, viewModel: PlaylistDetailViewModel) {
         self.playlist = playlist
@@ -77,25 +65,15 @@ struct PlaylistDetailView: View {
         .refreshable {
             await self.viewModel.refresh()
         }
-        .sheet(isPresented: self.$showRefineSheet) {
-            if let detail = viewModel.playlistDetail {
-                RefinePlaylistSheet(
-                    tracks: detail.tracks,
-                    isProcessing: self.$isRefining,
-                    changes: self.$playlistChanges,
-                    partialChanges: self.$partialChanges,
-                    errorMessage: self.$refineError,
-                    onRefine: { prompt in
-                        await self.refinePlaylist(tracks: detail.tracks, prompt: prompt)
-                    },
-                    onApply: {
-                        // Playlist modification via API not yet implemented
-                        // For now, just close the sheet
-                        self.showRefineSheet = false
+        #if canImport(FoundationModels)
+            .sheet(isPresented: self.$showRefineSheet) {
+                if #available(macOS 26.0, *) {
+                    if let detail = viewModel.playlistDetail {
+                        RefinePlaylistSheet(tracks: detail.tracks)
                     }
-                )
+                }
             }
-        }
+        #endif
     }
 
     // MARK: - Views
@@ -178,7 +156,7 @@ struct PlaylistDetailView: View {
                     .buttonStyle(.bordered)
                     .controlSize(.large)
 
-                    // Refine Playlist button (AI-powered)
+                    // Refine Playlist button (AI-powered, macOS 26+ only)
                     if !detail.isAlbum {
                         Button {
                             self.showRefineSheet = true
@@ -363,345 +341,317 @@ struct PlaylistDetailView: View {
             }
         }
     }
-
-    private func refinePlaylist(tracks: [Song], prompt: String) async {
-        self.isRefining = true
-        self.refineError = nil
-        self.playlistChanges = nil
-        self.partialChanges = nil
-
-        self.logger.info("Refining playlist with prompt: \(prompt)")
-
-        let instructions = """
-        You are a music playlist curator. Analyze songs and suggest changes based on the request.
-
-        IMPORTANT RULES:
-        - A "duplicate" means the EXACT same video ID appears twice. Different versions/covers
-          of a song by different artists are NOT duplicates.
-        - "Last Christmas" by Wham! and "Last Christmas" by Jimmy Eat World are DIFFERENT songs.
-        - Only suggest removing tracks that truly don't fit the user's criteria.
-        - When in doubt, keep the song.
-        """
-
-        // Use analysis session for creative playlist curation
-        guard let session = FoundationModelsService.shared.createAnalysisSession(instructions: instructions) else {
-            self.refineError = "Apple Intelligence is not available"
-            self.isRefining = false
-            return
-        }
-
-        // Build track list - limit to 25 to reduce content filter issues
-        let trackLimit = min(tracks.count, 25)
-        let trackList = tracks.prefix(trackLimit).enumerated().map { index, track in
-            // Sanitize track info to reduce content filter triggers
-            let safeTitle = track.title.prefix(50)
-            let safeArtist = track.artistsDisplay.prefix(30)
-            return "\(index + 1). \(safeTitle) - \(safeArtist) [id:\(track.videoId)]"
-        }.joined(separator: "\n")
-
-        let userPrompt = """
-        Playlist (\(tracks.count) songs, showing \(trackLimit)):
-
-        \(trackList)
-
-        Request: \(prompt)
-        """
-
-        do {
-            // Use streaming for progressive UI updates
-            let stream = session.streamResponse(to: userPrompt, generating: PlaylistChanges.self)
-
-            for try await snapshot in stream {
-                // Update partial content for streaming UI
-                self.partialChanges = snapshot.content
-            }
-
-            // Stream complete - convert final partial to complete changes
-            if let final = self.partialChanges,
-               let removals = final.removals,
-               let reasoning = final.reasoning
-            {
-                self.playlistChanges = PlaylistChanges(
-                    removals: removals,
-                    reorderedIds: final.reorderedIds,
-                    reasoning: reasoning
-                )
-                self.logger.info("Got playlist changes: \(removals.count) removals")
-            }
-        } catch {
-            // Use centralized error handler for consistent messaging
-            if let message = AIErrorHandler.handleAndMessage(error, context: "playlist refinement") {
-                self.refineError = message
-            }
-        }
-
-        self.partialChanges = nil
-        self.isRefining = false
-    }
 }
 
-// MARK: - RefinePlaylistSheet
+// MARK: - RefinePlaylistSheet (macOS 26+ only)
 
-@available(macOS 26.0, *)
-private struct RefinePlaylistSheet: View {
-    let tracks: [Song]
-    @Binding var isProcessing: Bool
-    @Binding var changes: PlaylistChanges?
-    @Binding var partialChanges: PlaylistChanges.PartiallyGenerated?
-    @Binding var errorMessage: String?
-    let onRefine: (String) async -> Void
-    let onApply: () -> Void
+#if canImport(FoundationModels)
+    @available(macOS 26.0, *)
+    private struct RefinePlaylistSheet: View {
+        let tracks: [Song]
 
-    @Environment(\.dismiss) private var dismiss
-    @State private var promptText = ""
-    @FocusState private var isPromptFocused: Bool
+        @Environment(\.dismiss) private var dismiss
 
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Refine Playlist")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    self.dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
+        @State private var promptText: String = ""
+        @State private var isProcessing: Bool = false
+        @State private var playlistChanges: PlaylistChanges?
+        @State private var partialChanges: PlaylistChanges.PartiallyGenerated?
+        @State private var errorMessage: String?
+
+        private let logger = DiagnosticsLogger.ai
+
+        var body: some View {
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text("Refine Playlist")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        self.dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .padding()
+
+                Divider()
+
+                if let changes = playlistChanges {
+                    // Show results
+                    self.changesView(changes)
+                } else if self.isProcessing, let partial = partialChanges {
+                    // Show streaming results
+                    self.streamingChangesView(partial)
+                } else if let error = errorMessage {
+                    // Show error
+                    self.errorView(error)
+                } else {
+                    // Show input
+                    self.inputView
+                }
+            }
+            .frame(width: 500, height: 400)
+        }
+
+        private var inputView: some View {
+            VStack(spacing: 16) {
+                Text("Describe what you'd like to change about this playlist")
+                    .foregroundStyle(.secondary)
+
+                TextField("e.g., remove duplicates, sort by energy...", text: self.$promptText)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(self.isProcessing)
+
+                // Suggestions
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        self.suggestionChip("Remove duplicates")
+                        self.suggestionChip("Sort by energy")
+                        self.suggestionChip("Remove explicit songs")
+                        self.suggestionChip("Keep only upbeat songs")
+                    }
+                }
+
+                Spacer()
+
+                HStack {
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                    .keyboardShortcut(.escape)
+
+                    Spacer()
+
+                    Button("Refine") {
+                        Task {
+                            await self.refinePlaylist()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(self.promptText.isEmpty || self.isProcessing)
+                }
             }
             .padding()
+        }
 
-            Divider()
+        private func errorView(_ error: String) -> some View {
+            VStack(spacing: 16) {
+                Spacer()
 
-            // Content
-            if self.isProcessing {
-                if let partial = partialChanges {
-                    self.streamingChangesView(partial)
-                } else {
-                    self.loadingView
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.orange)
+
+                Text(error)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                HStack {
+                    Button("Try Again") {
+                        self.errorMessage = nil
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                    .keyboardShortcut(.escape)
                 }
-            } else if let changes {
-                self.changesView(changes)
-            } else {
-                self.promptView
             }
+            .padding()
         }
-        .frame(width: 500, height: 400)
-        .onAppear {
-            self.isPromptFocused = true
-        }
-    }
 
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.regular)
-                .frame(width: 20, height: 20)
-            Text("Analyzing playlist...")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
+        private func streamingChangesView(_ partial: PlaylistChanges.PartiallyGenerated) -> some View {
+            VStack(spacing: 16) {
+                HStack {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Analyzing playlist...")
+                        .foregroundStyle(.secondary)
+                }
 
-    /// Shows partial changes as they stream in from the AI.
-    private func streamingChangesView(_ partial: PlaylistChanges.PartiallyGenerated) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Reasoning (shows as it streams)
-            HStack(spacing: 8) {
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.6)
-                    .frame(width: 10, height: 10)
                 if let reasoning = partial.reasoning {
                     Text(reasoning)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                } else {
-                    Text("Analyzing...")
-                        .font(.subheadline)
+                }
+
+                if let removals = partial.removals, !removals.isEmpty {
+                    Text("Found \(removals.count) songs to remove...")
+                        .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
-            }
-            .padding(.horizontal)
 
-            Divider()
-
-            // Changes list (shows as items stream in)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if let removals = partial.removals, !removals.isEmpty {
-                        Text("Suggested Removals")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .textCase(.uppercase)
-
-                        ForEach(removals, id: \.self) { videoId in
-                            if let track = tracks.first(where: { $0.videoId == videoId }) {
-                                HStack {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
-                                    Text(track.title)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text(track.artistsDisplay)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            Spacer()
-
-            // Disabled actions during streaming
-            HStack {
                 Spacer()
-                Text("Processing...")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
             .padding()
         }
-    }
 
-    private var promptView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("What would you like to change?")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            TextField("e.g., Remove slow songs, reorder by energy...", text: self.$promptText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(3 ... 5)
-                .focused(self.$isPromptFocused)
-
-            if let error = errorMessage {
-                Text(error)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            HStack(spacing: 12) {
-                self.suggestionChip("Remove duplicates")
-                self.suggestionChip("Make it more upbeat")
-                self.suggestionChip("Better flow")
-            }
-
-            Spacer()
-
-            HStack {
-                Spacer()
-                Button("Cancel") {
-                    self.dismiss()
-                }
-                .keyboardShortcut(.escape)
-
-                Button("Refine") {
-                    Task {
-                        await self.onRefine(self.promptText)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(self.promptText.trimmingCharacters(in: .whitespaces).isEmpty)
-                .keyboardShortcut(.return)
-            }
-        }
-        .padding()
-    }
-
-    private func changesView(_ changes: PlaylistChanges) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Reasoning
-            Text(changes.reasoning)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal)
-
-            Divider()
-
-            // Changes list
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if !changes.removals.isEmpty {
-                        Text("Suggested Removals")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .textCase(.uppercase)
-
-                        ForEach(changes.removals, id: \.self) { videoId in
-                            if let track = tracks.first(where: { $0.videoId == videoId }) {
-                                HStack {
-                                    Image(systemName: "minus.circle.fill")
-                                        .foregroundStyle(.red)
-                                    Text(track.title)
-                                        .lineLimit(1)
-                                    Spacer()
-                                    Text(track.artistsDisplay)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    }
-
-                    if changes.removals.isEmpty, changes.reorderedIds == nil {
-                        Text("No changes suggested. The playlist looks good!")
+        private func changesView(_ changes: PlaylistChanges) -> some View {
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Reasoning
+                        Text(changes.reasoning)
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+
+                        // Removals
+                        if !changes.removals.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Songs to Remove (\(changes.removals.count))")
+                                    .font(.headline)
+                                    .padding(.horizontal)
+
+                                ForEach(changes.removals, id: \.self) { videoId in
+                                    HStack {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundStyle(.red)
+                                        // Find the track info from our tracks list
+                                        if let track = self.tracks.first(where: { $0.videoId == videoId }) {
+                                            VStack(alignment: .leading) {
+                                                Text(track.title)
+                                                    .lineLimit(1)
+                                                Text(track.artistsDisplay)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        } else {
+                                            Text(videoId)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+
+                        if changes.removals.isEmpty, changes.reorderedIds == nil {
+                            Text("No changes suggested. The playlist looks good!")
+                                .foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(.vertical)
                 }
-                .padding(.horizontal)
+
+                Divider()
+
+                // Actions
+                HStack {
+                    Button("Try Again") {
+                        self.playlistChanges = nil
+                        self.errorMessage = nil
+                    }
+
+                    Spacer()
+
+                    Button("Cancel") {
+                        self.dismiss()
+                    }
+                    .keyboardShortcut(.escape)
+
+                    Button("Apply Changes") {
+                        // Playlist modification via API not yet implemented
+                        self.dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(changes.removals.isEmpty && changes.reorderedIds == nil)
+                }
+                .padding()
+            }
+        }
+
+        private func suggestionChip(_ text: String) -> some View {
+            Button {
+                self.promptText = text
+            } label: {
+                Text(text)
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.quaternary)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+
+        private func refinePlaylist() async {
+            self.isProcessing = true
+            self.errorMessage = nil
+            self.playlistChanges = nil
+            self.partialChanges = nil
+
+            self.logger.info("Refining playlist with prompt: \(self.promptText)")
+
+            let instructions = """
+            You are a music playlist curator. Analyze songs and suggest changes based on the request.
+
+            IMPORTANT RULES:
+            - A "duplicate" means the EXACT same video ID appears twice. Different versions/covers
+              of a song by different artists are NOT duplicates.
+            - "Last Christmas" by Wham! and "Last Christmas" by Jimmy Eat World are DIFFERENT songs.
+            - Only suggest removing tracks that truly don't fit the user's criteria.
+            - When in doubt, keep the song.
+            """
+
+            guard let session = FoundationModelsService.shared.createAnalysisSession(instructions: instructions) else {
+                self.errorMessage = "Apple Intelligence is not available"
+                self.isProcessing = false
+                return
             }
 
-            Divider()
+            // Build track list - limit to 25 to reduce content filter issues
+            let trackLimit = min(self.tracks.count, 25)
+            let trackList = self.tracks.prefix(trackLimit).enumerated().map { index, track in
+                let safeTitle = track.title.prefix(50)
+                let safeArtist = track.artistsDisplay.prefix(30)
+                return "\(index + 1). \(safeTitle) - \(safeArtist) [id:\(track.videoId)]"
+            }.joined(separator: "\n")
 
-            // Actions
-            HStack {
-                Button("Try Again") {
-                    self.changes = nil
-                    self.errorMessage = nil
+            let userPrompt = """
+            Playlist (\(self.tracks.count) songs, showing \(trackLimit)):
+
+            \(trackList)
+
+            Request: \(self.promptText)
+            """
+
+            do {
+                let stream = session.streamResponse(to: userPrompt, generating: PlaylistChanges.self)
+
+                for try await snapshot in stream {
+                    self.partialChanges = snapshot.content
                 }
 
-                Spacer()
-
-                Button("Cancel") {
-                    self.dismiss()
+                if let final = self.partialChanges,
+                   let removals = final.removals,
+                   let reasoning = final.reasoning
+                {
+                    self.playlistChanges = PlaylistChanges(
+                        removals: removals,
+                        reorderedIds: final.reorderedIds,
+                        reasoning: reasoning
+                    )
+                    self.logger.info("Got playlist changes: \(removals.count) removals")
                 }
-                .keyboardShortcut(.escape)
-
-                Button("Apply Changes") {
-                    self.onApply()
+            } catch {
+                if let message = AIErrorHandler.handleAndMessage(error, context: "playlist refinement") {
+                    self.errorMessage = message
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(changes.removals.isEmpty && changes.reorderedIds == nil)
             }
-            .padding()
-        }
-    }
 
-    private func suggestionChip(_ text: String) -> some View {
-        Button {
-            self.promptText = text
-        } label: {
-            Text(text)
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.quaternary)
-                .clipShape(Capsule())
+            self.partialChanges = nil
+            self.isProcessing = false
         }
-        .buttonStyle(.plain)
     }
-}
+#endif
 
 #Preview {
     let playlist = Playlist(

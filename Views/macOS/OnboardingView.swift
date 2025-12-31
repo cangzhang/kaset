@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - OnboardingView
 
 /// Onboarding view shown to users before they sign in.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct OnboardingView: View {
     @Environment(AuthService.self) private var authService
     @State private var showLoginSheet = false
@@ -89,7 +89,7 @@ struct OnboardingView: View {
 // MARK: - FeatureRow
 
 /// A row displaying a feature with icon, title, and description.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 private struct FeatureRow: View {
     let icon: String
     let title: String
@@ -114,7 +114,7 @@ private struct FeatureRow: View {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview {
     OnboardingView()
         .environment(AuthService())

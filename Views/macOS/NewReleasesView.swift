@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// New Releases view displaying recently released music.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct NewReleasesView: View {
     @State var viewModel: NewReleasesViewModel
     @Environment(PlayerService.self) private var playerService

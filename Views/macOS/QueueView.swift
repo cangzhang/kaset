@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - QueueView
 
 /// Right sidebar panel displaying the playback queue.
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 struct QueueView: View {
     @Environment(PlayerService.self) private var playerService
     @Environment(FavoritesManager.self) private var favoritesManager
@@ -21,7 +21,7 @@ struct QueueView: View {
         }
         .frame(minWidth: 280, maxWidth: 280)
         .background(.background.opacity(0.95))
-        .glassEffectTransition(.materialize)
+        .transition(.opacity.combined(with: .move(edge: .trailing)))
         .accessibilityIdentifier(AccessibilityID.Queue.container)
     }
 
@@ -112,7 +112,7 @@ struct QueueView: View {
 
 // MARK: - QueueRowView
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 private struct QueueRowView: View {
     let song: Song
     let isCurrentTrack: Bool
@@ -224,7 +224,7 @@ private struct QueueRowView: View {
     }
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview("Queue View") {
     let playerService = PlayerService()
     QueueView()
@@ -233,7 +233,7 @@ private struct QueueRowView: View {
         .frame(height: 600)
 }
 
-@available(macOS 26.0, *)
+@available(macOS 15.0, *)
 #Preview("Queue View with Items") {
     let playerService = PlayerService()
     // Note: In real use, queue would be populated via playQueue()
