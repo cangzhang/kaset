@@ -71,7 +71,7 @@ jobs:
 
       - name: Create DMG
         run: |
-          APP_PATH=$(find ./build/Build/Products/Release -name "*.app" -type d | head -n 1)
+          APP_PATH=$(find ./build/Build/Products/Release -maxdepth 1 -name "Kaset.app" -type d | head -n 1)
 
           if [ -z "$APP_PATH" ]; then
             echo "Error: Could not find built app"
