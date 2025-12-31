@@ -1,4 +1,6 @@
-# Kaset
+Forked from [sozercan/kaset](https://github.com/sozercan/kaset)
+
+# Kaset <sup>for macOS 15</sup>
 
 A native macOS YouTube Music client built with Swift and SwiftUI.
 
@@ -24,7 +26,7 @@ A native macOS YouTube Music client built with Swift and SwiftUI.
 
 ## Requirements
 
-- macOS 26.0 or later
+- <del>macOS 26.0 or later</del>
 - [YouTube Music Premium](https://www.youtube.com/musicpremium) subscription
 
 ## Installation
